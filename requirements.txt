@@ -1,0 +1,2 @@
+beautifulsoup4==4.12.2
+kiwipiepy==0.16.0

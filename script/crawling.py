@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 from collections import Counter
 from kiwipiepy import Kiwi
+import logging
 from typing import List, Dict
 
 
@@ -111,11 +112,20 @@ class CrawlingSaramin(Crawling):
 
 
 def main(args):
+    logger = logging.getLogger()
+    logger.setLevel(
+        logging.DEBUG if args.log_type.lower() == "debug" else logging.INFO
+    )
+
+    logging.info("[INFO] Set instance of crawling")
     crawling = Crawling()
-    if args.type.lower() == "saramin":
+    if args.site_type.lower() == "saramin":
         crawling = CrawlingSaramin()
 
+    logging.info("[INFO] Get recruit content dict")
     recruit_content_dict = crawling.get_recruit_content_dict()
+
+    logging.info("[INFO] Count for tokens")
     token_counter = crawling.tokenize(list(recruit_content_dict.values()))
 
     for token, count in token_counter:
@@ -125,6 +135,7 @@ def main(args):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("-t", "--type", help="type of site", default="saramin")
+    parser.add_argument("-s", "--site_type", help="type of site", default="saramin")
+    parser.add_argument("-l", "--log_type", help="type of log", default="info")
     args = parser.parse_args()
     main(args)

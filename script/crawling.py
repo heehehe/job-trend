@@ -135,7 +135,7 @@ def main(args):
     logging.info("[INFO] Get recruit content info")
     recruit_content_infos = crawling.get_recruit_content_info()
     if args.data_path:
-        with open(os.path.join(args.data_path, f"url.{args.site_type}.tsv")) as f:
+        with open(os.path.join(args.data_path, f"url.{args.site_type}.tsv"), "w") as f:
             for url, info in recruit_content_infos.items():
                 f.write("\t".join([
                     url, info.get("title", ""), info.get("content", "")

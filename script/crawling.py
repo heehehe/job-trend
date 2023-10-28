@@ -24,7 +24,7 @@ class Crawling:
             response = s.get(url, headers=self.headers)
         return response
 
-    def get_recruit_content_dict(self):
+    def get_recruit_content_info(self):
         return []
 
     def tokenize(self, content_list: List[str]) -> Counter:
@@ -86,11 +86,11 @@ class CrawlingSaramin(Crawling):
 
         return id_dict
 
-    def get_recruit_content_dict(self, category_id: int = 83) -> Dict[str, Dict[str, str]]:
+    def get_recruit_content_info(self, category_id: int = 83) -> Dict[str, Dict[str, str]]:
         """
         Get recruit contents for each url
         :param category_id: id of recruit category
-        :return: dict of recruit contents for each url (key: url / value: content)
+        :return: dict of recruit contents for each url (key: url / value: title, content)
         """
         recruit_content_dict = {}
 
@@ -132,18 +132,18 @@ def main(args):
     if args.site_type.lower() == "saramin":
         crawling = CrawlingSaramin()
 
-    logging.info("[INFO] Get recruit content dict")
-    recruit_content_dict = crawling.get_recruit_content_dict()
+    logging.info("[INFO] Get recruit content info")
+    recruit_content_infos = crawling.get_recruit_content_info()
     if args.data_path:
         with open(os.path.join(args.data_path, f"url.{args.site_type}.tsv")) as f:
-            for url, info in recruit_content_dict.items():
+            for url, info in recruit_content_infos.items():
                 f.write("\t".join([
                     url, info.get("title", ""), info.get("content", "")
                 ])+"\n")
 
     logging.info("[INFO] Count for tokens")
     token_counter = crawling.tokenize([
-        info.get("content", "") for info in recruit_content_dict.values()
+        info.get("content", "") for info in recruit_content_infos.values()
     ])
 
     for token, count in token_counter.most_common():

@@ -1,3 +1,4 @@
+import os
 import requests
 from bs4 import BeautifulSoup
 from collections import Counter
@@ -49,13 +50,13 @@ class CrawlingSaramin(Crawling):
         super().__init__()
         self.endpoint = "https://www.saramin.co.kr"
 
-    def get_id_list(self, category_id: int = 83) -> List[str]:
+    def get_id_dict(self, category_id: int = 83) -> Dict[str, str]:
         """
-        Crawling id list of recruitment pages
+        Crawling id and title for recruitment pages
         :param category_id: id of recruit category
-        :return: list of recruitment page urls
+        :return: dict of recruitment page urls with title (key: url / value: title)
         """
-        def _crawl_id_list(page_number: int) -> List[str]:
+        def _crawl_id(page_number: int) -> Dict[str, str]:
             """ Crawling id list for specific page number on recruitment page
             :param page_number: number of page to crawl
             :return: list of recruitment page urls for specific page
@@ -66,20 +67,26 @@ class CrawlingSaramin(Crawling):
             soup = BeautifulSoup(response.text, 'html.parser')
             contents = soup.find_all('div', class_='item_recruit')
 
-            return [content.get('value') for content in contents]
+            id_dict = {}
+            for content in contents:
+                _id = content.get('value')
+                title = content.find('h2', class_='job_tit').find('a').get('title')
+                id_dict[_id] = title
 
-        id_list = []
+            return id_dict
+
+        id_dict = {}
         recruit_page = 1
-        _id_list = _crawl_id_list(recruit_page)
+        _id_dict = _crawl_id(recruit_page)
 
-        while _id_list:
-            id_list.extend(_id_list)
+        while _id_dict:
+            id_dict.update(_id_dict)
             recruit_page += 1
-            _id_list = _crawl_id_list(recruit_page)
+            _id_dict = _crawl_id(recruit_page)
 
-        return id_list
+        return id_dict
 
-    def get_recruit_content_dict(self, category_id: int = 83) -> Dict[str, str]:
+    def get_recruit_content_dict(self, category_id: int = 83) -> Dict[str, Dict[str, str]]:
         """
         Get recruit contents for each url
         :param category_id: id of recruit category
@@ -87,7 +94,7 @@ class CrawlingSaramin(Crawling):
         """
         recruit_content_dict = {}
 
-        for _id in self.get_id_list(category_id):
+        for _id, title in self.get_id_dict(category_id).items():
             url = f"https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx={_id}"
             response = self.requests_get(url)
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -106,7 +113,10 @@ class CrawlingSaramin(Crawling):
             end_index = content_text.index('","kindness_expired_dt"')
             recruit_contents = content_text[start_index + len('"recruit_contents":"'):end_index]
 
-            recruit_content_dict[url] = recruit_contents.encode('utf-8').decode('unicode_escape')
+            recruit_content_dict[url] = {
+                "title": title,
+                "content": recruit_contents.encode('utf-8').decode('unicode_escape')
+            }
 
         return recruit_content_dict
 
@@ -124,11 +134,19 @@ def main(args):
 
     logging.info("[INFO] Get recruit content dict")
     recruit_content_dict = crawling.get_recruit_content_dict()
+    if args.data_path:
+        with open(os.path.join(args.data_path, f"url.{args.site_type}.tsv")) as f:
+            for url, info in recruit_content_dict.items():
+                f.write("\t".join([
+                    url, info.get("title", ""), info.get("content", "")
+                ])+"\n")
 
     logging.info("[INFO] Count for tokens")
-    token_counter = crawling.tokenize(list(recruit_content_dict.values()))
+    token_counter = crawling.tokenize([
+        info.get("content", "") for info in recruit_content_dict.values()
+    ])
 
-    for token, count in token_counter:
+    for token, count in token_counter.most_common():
         print(token, count, sep="\t")
 
 
@@ -137,5 +155,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--site_type", help="type of site", default="saramin")
     parser.add_argument("-l", "--log_type", help="type of log", default="info")
+    parser.add_argument("-d", "--data_path", help="path of data")
     args = parser.parse_args()
     main(args)

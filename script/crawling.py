@@ -1,10 +1,8 @@
 import os
 import requests
 from bs4 import BeautifulSoup
-from collections import Counter
-from kiwipiepy import Kiwi
 import logging
-from typing import List, Dict
+from typing import Dict
 
 
 class Crawling:
@@ -12,7 +10,6 @@ class Crawling:
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36'
         }
-        self.tokenizer = Kiwi()
 
     def requests_get(self, url: str) -> requests.Response:
         """
@@ -26,23 +23,6 @@ class Crawling:
 
     def get_recruit_content_info(self):
         return []
-
-    def tokenize(self, content_list: List[str]) -> Counter:
-        """
-        tokenize for list of contents
-        :param content_list: list of contents
-        :return: list of tokens
-        """
-        token_list = []
-
-        for content in content_list:
-            token_list.extend([
-                token.form for token in self.tokenizer.tokenize(content) if token.tag == 'NNG'
-            ])
-
-        token_counter = Counter(token_list)
-
-        return token_counter
 
 
 class CrawlingSaramin(Crawling):
@@ -140,14 +120,6 @@ def main(args):
                 f.write("\t".join([
                     url, info.get("title", ""), info.get("content", "")
                 ])+"\n")
-
-    logging.info("[INFO] Count for tokens")
-    token_counter = crawling.tokenize([
-        info.get("content", "") for info in recruit_content_infos.values()
-    ])
-
-    for token, count in token_counter.most_common():
-        print(token, count, sep="\t")
 
 
 if __name__ == "__main__":

@@ -4,10 +4,10 @@ SHELL_PATH=$(dirname -- "${BASH_SOURCE[0]}")
 DATA_PATH="${SHELL_PATH}/data"
 mkdir -p "$DATA_PATH"
 
-site_type_list=("saramin")
+SITE_LIST=("jumpit")
 
 
-for site_type in "${site_type_list[@]}"; do
+for site_type in "${SITE_LIST[@]}"; do
     python3 script/crawling.py \
        --site_type "$site_type" \
        --data_path "$DATA_PATH"

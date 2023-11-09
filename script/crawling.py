@@ -179,7 +179,7 @@ class CrawlingJumpit(Crawling):
         position_content_dict = self.get_recruit_content_info(job_dict)
         result_dict = self.postprocess(position_content_dict)
 
-        with open(os.path.join(data_path, "jumpit.content.info.jsonl", "w")) as f:
+        with open(os.path.join(data_path, "jumpit.content.info.jsonl"), "w") as f:
             for url, info in result_dict.items():
                 info["url"] = f"{self.endpoint}{url}"
                 f.write(json.dumps(info) + "\n")

@@ -44,7 +44,10 @@ def main():
 
     if response:
         sys.stderr.write("[ERROR]")
-        sys.stderr.write(response)
+        # sys.stderr.write(response)
+        for i in response :
+            sys.stderr.write(str(i))
+
 
 
 if __name__ == "__main__":

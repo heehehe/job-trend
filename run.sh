@@ -14,9 +14,9 @@ for site_type in "${SITE_LIST[@]}"; do
        --site_type "$site_type" \
        --data_path "$DATA_PATH"
 
-    cut -f3 "${DATA_PATH}/url.${site_type}.tsv" \
-        python3 ${SCRIPT_PATH}/tokenizing.py \
-        > "${DATA_PATH}/tokens.${site_type}.tsv"
+    # cut -f3 "${DATA_PATH}/url.${site_type}.tsv" \
+    #     python3 ${SCRIPT_PATH}/tokenizing.py \
+    #     > "${DATA_PATH}/tokens.${site_type}.tsv"
 
 done
 

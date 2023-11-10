@@ -9,14 +9,20 @@ Job Trend 프로젝트는 이러한 궁금증에서 시작하게 되었습니다
 각 채용공고 사이트 정보를 통해 개발자 직무별/기술스택별 유의미한 정보를 추출하여     
 성장을 꿈꾸는 개발자들에게 도움이 되고자 합니다 🚀
 
+## Dashboard
 ![Dashboard](./img/dashboard.jpg)
 
-## Install & Run
+## Getting Started
+### _Prerequisites_
+- Python 3.8
+- Google Cloud Platform console (for BigQuery)
+- Redash
+### _Setup_
 ```bash
-# install prerequisites
 ./initialize.sh
-
-# run
+```
+### _Run_
+```
 ./run.sh
 ```
 
@@ -25,10 +31,10 @@ Job Trend 프로젝트는 이러한 궁금증에서 시작하게 되었습니다
 
 ### _Data Sources_
 - 여러 채용공고 사이트들로부터 개발자 채용공고 정보를 추출합니다.
-  - [x] Jumpit
-  - [ ] 잡플래닛
-  - [ ] 원티드
-  - [ ] 잡코리아
+  - [x] 점핏 (https://www.jumpit.co.kr)
+  - [ ] 잡플래닛 (https://www.jobplanet.co.kr)
+  - [ ] 원티드 (https://www.wanted.co.kr)
+  - [ ] 잡코리아 (https://www.jobkorea.co.kr)
   - [ ] ...
 
 ### _Extract_
@@ -48,6 +54,8 @@ Job Trend 프로젝트는 이러한 궁금증에서 시작하게 되었습니다
 ### _Load_
 - 변환된 데이터를 Data Warehouse에 저장합니다.
 - Data Warehouse로는 `Google BigQuery`를 이용합니다. 
+- 데이터는 아래와 같은 schema를 기준으로 저장됩니다. (future work)
+  ![db_schema](./img/db_schema.png)
 
 ### _Batch Processing (future work)_
 - `Airflow`를 통해 기반으로 일별 batch processing을 통해 데이터를 업데이트 합니다.

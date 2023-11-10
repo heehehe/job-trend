@@ -3,16 +3,19 @@ import json
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 import time
 import logging
 from typing import Dict
-
+import sys
 
 class Crawling:
     def __init__(self):
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36'
         }
+        self.os_type = sys.platform.lower()
 
     def requests_get(self, url: str) -> requests.Response:
         """
@@ -38,8 +41,13 @@ class CrawlingJumpit(Crawling):
     """
     def __init__(self):
         super().__init__()
+        
         self.endpoint = "https://www.jumpit.co.kr"
-        self.driver = webdriver.Safari()
+        if self.os_type =="darwin":
+            self.driver = webdriver.Safari()
+        else :
+            self.driver = webdriver.Chrome()
+
         self.job_category_id2name = {
             1: "서버/백엔드 개발자",
             2: "프론트엔드 개발자",
@@ -277,9 +285,124 @@ class CrawlingSaramin(Crawling):
                 ]) + "\n")
 
 
+class CrawlingJobPlanet(Crawling) :
+    """
+    Crawling of "https://www.jobplanet.co.kr" 
+    """
+    def __init__(self) -> None:
+        super().__init__()
+        self.endpoint = "https://www.jobplanet.co.kr"
+        if self.os_type =="darwin":
+            self.driver = webdriver.Safari()
+        else :
+            self.driver = webdriver.Chrome()
+
+    def get_url_list(self) -> dict:
+        def job_find_window() :
+            self.driver.find_element(By.CLASS_NAME,"jply_btn_sm.inner_text.jf_b2").click()
+            dev_tab = self.driver.find_element(By.CLASS_NAME,"filter_depth1_list").find_elements(By.CLASS_NAME,"filter_depth1_btn.jf_b1")
+            for i in dev_tab:
+                if i.text == "개발" :
+                    i.click()
+                else :
+                    continue
+    
+        self.driver.get(self.endpoint+"/job")
+        time.sleep(1)
+        job_find_window()
+        job_chkbox = ([0])*10
+        job_list_idx = 0
+        job_dict = {}
+
+        while len(job_chkbox) > job_list_idx :
+            job_chkbox = self.driver.find_elements(By.CLASS_NAME,"jply_checkbox_box")
+            current_obj = job_chkbox[job_list_idx]  # index = 0은 직무 전체이므로 패스
+            before_obj = job_chkbox[job_list_idx-1]
+            clicked_list = before_obj.find_elements(By.CLASS_NAME,"jp-checkbox-checked_fill.checked")   
+            for clk in clicked_list :
+                clk.click() # 이전 직무 checkbox release
+
+            job_name = current_obj.find_element(By.CLASS_NAME,"jf_b1").text
+            
+            if not job_name or job_name == "개발 전체" :
+                job_list_idx +=1
+                continue
+            
+
+            print(job_name)
+            unchk_box = current_obj.find_element(By.CLASS_NAME,"jp-checkbox-unchecked.unchecked")
+            unchk_box.click()
+                
+            panel = self.driver.find_element(By.CLASS_NAME,"panel_bottom")
+            apply_btn = panel.find_element(By.CLASS_NAME,"jply_btn_sm.ty_solid")
+            apply_btn.click()
+
+            time.sleep(1)
+            
+            _page_source = ""
+            
+            while True:
+                self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                # driver.find_element(By.TAG_NAME,"body").send_keys(Keys.PAGE_DOWN)
+                time.sleep(1)
+                # if _page_source == self.driver.page_source:
+                #     self.driver.execute_script("window.scrollTo(0, 0);")
+                #     break
+                # else:
+                #     _page_source = self.driver.page_source
+                self.driver.execute_script("window.scrollTo(0, 0);")
+                break
+
+
+            soup = BeautifulSoup(self.driver.page_source,"html.parser")
+            card_list = soup.select("div.item-card")
+            print(len(card_list))
+            href_list = [card.select_one("a").get("href") for card in card_list]
+            job_dict[job_name] = {
+                "page_source": self.driver.page_source,
+                "href_list": href_list
+            }
+            
+            job_list_idx += 1
+            job_find_window()
+            time.sleep(1)
+            break
+
+        
+        return job_dict
+
+    def get_recruit_content_info(self, job_dict:dict) -> dict:
+        position_content_dict = {}
+        for job_category, job_info in job_dict.items():
+            content_dict = {}
+            for href_url in job_info["href_list"]:
+                self.driver.get("https://www.jobplanet.co.kr" + href_url)
+                time.sleep(0.1)
+                content_dict[href_url] = self.driver.page_source
+
+            position_content_dict[job_category] = content_dict
+
+        return position_content_dict
+
+    def run(self, data_path: str):
+        job_dict = self.get_url_list()
+        position_content_dict = self.get_recruit_content_info(job_dict)
+        # result_dict = self.postprocess(position_content_dict)
+
+
+
+        # with open(os.path.join(data_path, "jumpit.content.info.jsonl"), "w") as f:
+        #     for url, info in result_dict.items():
+        #         info["url"] = f"{self.endpoint}{url}"
+        #         f.write(json.dumps(info) + "\n")
+    
+        self.driver.close()
+
+
 CRAWLING_CLASS = {
     "jumpit": CrawlingJumpit,
-    "saramin": CrawlingSaramin
+    "saramin": CrawlingSaramin,
+    "jobplanet": CrawlingJobPlanet
 }
 
 
@@ -299,7 +422,7 @@ def main(args):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--site_type", help="type of site", default="saramin")
+    parser.add_argument("-s", "--site_type", help="type of site", default="jobplanet")
     parser.add_argument("-l", "--log_type", help="type of log", default="info")
     parser.add_argument("-d", "--data_path", help="path of data")
     args = parser.parse_args()

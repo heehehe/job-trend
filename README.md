@@ -9,9 +9,6 @@ Job Trend 프로젝트는 이러한 궁금증에서 시작하게 되었습니다
 각 채용공고 사이트 정보를 통해 개발자 직무별/기술스택별 유의미한 정보를 추출하여     
 성장을 꿈꾸는 개발자들에게 도움이 되고자 합니다 🚀
 
-## Dashboard
-![Dashboard](./img/dashboard.jpg)
-
 ## Getting Started
 ### _Prerequisites_
 - Python 3.8
@@ -55,7 +52,7 @@ Job Trend 프로젝트는 이러한 궁금증에서 시작하게 되었습니다
 - 변환된 데이터를 Data Warehouse에 저장합니다.
 - Data Warehouse로는 `Google BigQuery`를 이용합니다. 
 - 데이터는 아래와 같은 schema를 기준으로 저장됩니다. (future work)
-  ![db_schema](./img/db_schema.png)
+  <br><img src="./img/db_schema.png" width=50%>
 
 ### _Batch Processing (future work)_
 - `Airflow`를 통해 기반으로 일별 batch processing을 통해 데이터를 업데이트 합니다.
@@ -65,6 +62,7 @@ Job Trend 프로젝트는 이러한 궁금증에서 시작하게 되었습니다
 - `Redash`를 통해 SQL문을 기반으로 대시보드를 생성합니다.
 - 직무별 상위 기술스택 및 기술스택별 상위 직무 등의 정보를 Bar 및 Pie chart 뿐만 아니라, Sankey 및 Sunburst Sequence chart 등을 통해 제공합니다. 
 - 직무(JOB), 기술스택(TECH STACK), 마감일(DEADLINE) parameter를 통해 동적으로 반응하는 대시보드를 구현합니다.
+  ![Dashboard](./img/dashboard.jpg)
 
 ### _Chatbot with LLM (future work)_
 - 추출된 채용공고 내용을 LLM에 학습시킨 뒤, 개발자 채용과 관련된 내용을 답할 수 있는 챗봇을 생성합니다. 

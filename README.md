@@ -1,6 +1,7 @@
 # Job Trend
 
 채용공고 데이터 추출 파이프라인 구축 및 트렌드 분석
+![Dashboard](./img/dashboard.jpg)
 
 ## Architecture
 
@@ -15,7 +16,6 @@
    - Airflow 기반으로 일별 batch process 기반 데이터 적재
 3. Visualization
    - redash 이용 (SQL문 기반 대시보드 생성)
-   ![Dashboard](./img/dashboard.jpg)
 4. LLM training (future work)
    - NAVER cloud platform에서 제공하는 CLOVA Studio API 이용
    - 추출된 채용공고 정보 학습된 chatbot 생성

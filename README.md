@@ -54,9 +54,9 @@ Job Trend 프로젝트는 이러한 궁금증에서 시작하게 되었습니다
 - 데이터는 아래와 같은 schema를 기준으로 저장됩니다. (future work)
   <br><img src="./img/db_schema.png" width=50%>
 
-### _Batch Processing (future work)_
+### _Batch Processing_
 - `Airflow`를 통해 기반으로 일별 batch processing을 통해 데이터를 업데이트 합니다.
-- `Kubernetes(k8s)` 또는 `Google Cloud Composer`를 통해 Airflow를 구동시킵니다.
+- `Kubernetes(k8s)` 기반의 환경에서 Airflow를 구동시킵니다.
 
 ### _Visualization_
 - `Redash`를 통해 SQL문을 기반으로 대시보드를 생성합니다.

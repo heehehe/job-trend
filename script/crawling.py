@@ -9,6 +9,7 @@ import time
 import logging
 from typing import Dict
 import sys
+import re 
 
 class Crawling:
     def __init__(self):
@@ -16,6 +17,12 @@ class Crawling:
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36'
         }
         self.os_type = sys.platform.lower()
+        self.info_key2name = {
+            "경력": "career",
+            "학력": "academic_background",
+            "마감일": "deadline",
+            "근무지역": "location"
+        }
 
     def requests_get(self, url: str) -> requests.Response:
         """
@@ -71,12 +78,7 @@ class CrawlingJumpit(Crawling):
             22: "블록체인",
             21: "기술지원"
         }
-        self.info_key2name = {
-            "경력": "career",
-            "학력": "academic_background",
-            "마감일": "deadline",
-            "근무지역": "location"
-        }
+        
 
     def get_url_list(self):
         job_dict = {}
@@ -329,7 +331,7 @@ class CrawlingJobPlanet(Crawling) :
                 continue
             
 
-            print(job_name)
+            # print(job_name)
             unchk_box = current_obj.find_element(By.CLASS_NAME,"jp-checkbox-unchecked.unchecked")
             unchk_box.click()
                 
@@ -343,20 +345,19 @@ class CrawlingJobPlanet(Crawling) :
             
             while True:
                 self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                # driver.find_element(By.TAG_NAME,"body").send_keys(Keys.PAGE_DOWN)
                 time.sleep(1)
-                # if _page_source == self.driver.page_source:
-                #     self.driver.execute_script("window.scrollTo(0, 0);")
-                #     break
-                # else:
-                #     _page_source = self.driver.page_source
-                self.driver.execute_script("window.scrollTo(0, 0);")
-                break
+                if _page_source == self.driver.page_source:
+                    self.driver.execute_script("window.scrollTo(0, 0);")
+                    break
+                else:
+                    _page_source = self.driver.page_source
+                # self.driver.execute_script("window.scrollTo(0, 0);")
+                # break
 
 
             soup = BeautifulSoup(self.driver.page_source,"html.parser")
             card_list = soup.select("div.item-card")
-            print(len(card_list))
+            # print(len(card_list))
             href_list = [card.select_one("a").get("href") for card in card_list]
             content_dict = {}
 
@@ -368,7 +369,7 @@ class CrawlingJobPlanet(Crawling) :
             job_list_idx += 1
             job_find_window()
             time.sleep(1)
-            break
+            # break
 
         
         return job_dict
@@ -378,42 +379,70 @@ class CrawlingJobPlanet(Crawling) :
         
         for job_name,info_dict in job_dict.items() :
             
-            for company_id, url in info_dict.items() :
-                res = requests.get(url)
-                soup = BeautifulSoup(res.text,"html.parser")
-                skill = soup.select_one("div.recruitment-summary__dd").text
+            for job_detail_href, url in info_dict.items() :
+                # res = requests.get(url)
+                self.driver.get(url)
+                time.sleep(1)
 
+                soup = BeautifulSoup(self.driver.page_source,"html.parser")
+                dd_list= soup.select("dd.recruitment-summary__dd")
+                dt_list = soup.select("dt.recruitment-summary__dt")
+
+            
+                deadline = None                
+                tech_list = []
+                extra_info = {}
+                for dt_num in range(len(dt_list)) :
+                    key = dt_list[dt_num].get_text(strip=True)
+                    value = dd_list[dt_num].get_text(strip=True)
+                    if  key == "스킬" :                                                
+                        tech_list = list(map(lambda x: x.strip(),value.split(",")))
+                                            
+                    elif key == "마감일" :                        
+                        date_pat = re.compile("\d+\.\d+\.\d+")
+                        deadline_pat = date_pat.search(value)
+                        if "상시" in value or deadline_pat is None:
+                            deadline = ""
+                        else :                            
+                            deadline = deadline_pat.group().strip()
+                        extra_info[self.info_key2name["마감일"]] = deadline
+
+                    elif key in self.info_key2name.keys() :
+                        
+                        extra_info[self.info_key2name[key]] = value
+                    
+                        
+
+                title= soup.select_one('h1.ttl').get_text(strip=True)
+                # print(title.get_text(strip=True))
+                company = soup.select_one("span.company_name")
+                company_id = company.find("a").get('href')
+                company_name = company.get_text(strip=True)
                 
                 
-
-
+                postprocess_dict[url] = {
+                            "job_name": job_name,
+                            "title": title,
+                            "company_name": company_name,
+                            "company_id": company_id,
+                            "tag_id": [],
+                            "tag_name": [],
+                            "tech_list": tech_list
+                        }
+                postprocess_dict[url].update(extra_info)
+            
+        return postprocess_dict
         
-
-        # postprocess_dict[url] = {
-        #             "job_category": job_category,
-        #             "job_name": self.job_category_id2name[job_category],
-        #             "title": title,
-        #             "company_name": company_name,
-        #             "company_id": company_id,
-        #             "tag_id": list(tag_info.keys()),
-        #             "tag_name": list(tag_info.values()),
-        #             "tech_list": tech_list
-        #         }
-        #         postprocess_dict[url].update(extra_info)
-        
-
 
     def run(self, data_path: str):
         job_dict = self.get_url_list()
-        # position_content_dict = self.get_recruit_content_info(job_dict)
         result_dict = self.postprocess(job_dict)
 
 
-
-        # with open(os.path.join(data_path, "jumpit.content.info.jsonl"), "w") as f:
-        #     for url, info in result_dict.items():
-        #         info["url"] = f"{self.endpoint}{url}"
-        #         f.write(json.dumps(info) + "\n")
+        with open(os.path.join(data_path, "jobplanet.content.info.jsonl"), "w") as f:
+            for url, info in result_dict.items():
+                info["url"] = f"{self.endpoint}{url}"
+                f.write(json.dumps(info) + "\n")
     
         self.driver.close()
 

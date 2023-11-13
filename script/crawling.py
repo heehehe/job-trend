@@ -358,10 +358,12 @@ class CrawlingJobPlanet(Crawling) :
             card_list = soup.select("div.item-card")
             print(len(card_list))
             href_list = [card.select_one("a").get("href") for card in card_list]
-            job_dict[job_name] = {
-                "page_source": self.driver.page_source,
-                "href_list": href_list
-            }
+            content_dict = {}
+
+            for href in href_list :
+                url = "https://www.jobplanet.co.kr" + href
+                content_dict[href] = url
+            job_dict[job_name] = content_dict
             
             job_list_idx += 1
             job_find_window()
@@ -371,23 +373,40 @@ class CrawlingJobPlanet(Crawling) :
         
         return job_dict
 
-    def get_recruit_content_info(self, job_dict:dict) -> dict:
-        position_content_dict = {}
-        for job_category, job_info in job_dict.items():
-            content_dict = {}
-            for href_url in job_info["href_list"]:
-                self.driver.get("https://www.jobplanet.co.kr" + href_url)
-                time.sleep(0.1)
-                content_dict[href_url] = self.driver.page_source
+    def postprocess(self,job_dict:dict) -> dict:
+        postprocess_dict = {}
+        
+        for job_name,info_dict in job_dict.items() :
+            
+            for company_id, url in info_dict.items() :
+                res = requests.get(url)
+                soup = BeautifulSoup(res.text,"html.parser")
+                skill = soup.select_one("div.recruitment-summary__dd").text
 
-            position_content_dict[job_category] = content_dict
+                
+                
 
-        return position_content_dict
+
+        
+
+        # postprocess_dict[url] = {
+        #             "job_category": job_category,
+        #             "job_name": self.job_category_id2name[job_category],
+        #             "title": title,
+        #             "company_name": company_name,
+        #             "company_id": company_id,
+        #             "tag_id": list(tag_info.keys()),
+        #             "tag_name": list(tag_info.values()),
+        #             "tech_list": tech_list
+        #         }
+        #         postprocess_dict[url].update(extra_info)
+        
+
 
     def run(self, data_path: str):
         job_dict = self.get_url_list()
-        position_content_dict = self.get_recruit_content_info(job_dict)
-        # result_dict = self.postprocess(position_content_dict)
+        # position_content_dict = self.get_recruit_content_info(job_dict)
+        result_dict = self.postprocess(job_dict)
 
 
 

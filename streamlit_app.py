@@ -51,6 +51,7 @@ def main():
     
     # 메인화면
     st.write("## 📊Result")
+    tab1, tab2 = st.tabs(["🗃 Data", "📈 Chart"])
     if search_button:
         # job_name 필터
         job_filter = f"job_name = '{job_name_selected}'" if job_name_selected != "All" else "TRUE"
@@ -78,12 +79,15 @@ def main():
         LIMIT 50
         """
         with st.spinner("Loading..."):
-            data = client.query(fin_query).result().to_dataframe()
-            data['tech_stacks'] = data['tech_stacks'].apply(lambda x: x.split(','))
-            st.dataframe(data = data,
-                         column_config={
-                             "url": st.column_config.LinkColumn()
-                         })
+            with tab1:
+                data = client.query(fin_query).result().to_dataframe()
+                data['tech_stacks'] = data['tech_stacks'].apply(lambda x: x.split(','))
+                st.dataframe(data = data,
+                            column_config={
+                                "url": st.column_config.LinkColumn()
+                            })
+            with tab2:
+                st.write("Working In Progress...😅")
 
 if __name__ == "__main__":
     main()

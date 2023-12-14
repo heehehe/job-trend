@@ -80,7 +80,10 @@ def main():
         with st.spinner("Loading..."):
             data = client.query(fin_query).result().to_dataframe()
             data['tech_stacks'] = data['tech_stacks'].apply(lambda x: x.split(','))
-            st.write(data)
+            st.dataframe(data = data,
+                         column_config={
+                             "url": st.column_config.LinkColumn()
+                         })
 
 if __name__ == "__main__":
     main()

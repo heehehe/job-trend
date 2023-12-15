@@ -514,6 +514,14 @@ class CrawlingWanted(Crawling):
             894: "루비온레일즈 개발자",
             793: "CIO,Chief Information Officer"
         }
+        self.tag2field_map = {
+            "설명": "description",
+            "주요업무": "main_work",
+            "자격요건": "qualification",
+            "우대사항": "preferences",
+            "혜택 및 복지": "welfare",
+            "기술스택 ・ 툴": "tech_list"
+        }
 
     def get_url_list(self):
         job_dict = {}
@@ -539,8 +547,13 @@ class CrawlingWanted(Crawling):
         position_content_dict = {}
 
         for job_category, job_info in job_dict.items():
-            ## TODO: 세부정보 추가하기
-            continue
+            content_dict = {}
+            for position_url in job_info["position_list"]:
+                self.driver.get(f"self.endpoint{position_url}")
+                time.sleep(0.1)
+                content_dict[position_url] = self.driver.page_source
+
+            position_content_dict[job_category] = content_dict
 
         return position_content_dict
 
@@ -548,8 +561,44 @@ class CrawlingWanted(Crawling):
         postprocess_dict = {}
 
         for job_category, info_dict in position_content_dict.items():
-            ## TODO: 세부 후처리 추가하기
-            continue
+            for url, content in info_dict.items():
+                result = {}
+
+                soup = BeautifulSoup(content, 'html')
+
+                job_header = soup.find("section", class_="JobHeader_className__HttDA")
+
+                result['title'] = job_header.find("h2").text
+
+                _company_info = job_header.find("span", class_="JobHeader_companyNameText__uuJyu")
+                result['company_name'] = _company_info.text
+                result['company_id'] = _company_info.find("a")["href"]
+
+                _tag_list = job_header.find("div", class_="Tags_tagsClass__mvehZ").find_all("a")
+                result['tag_name'] = [tag.text.lstrip("#") for tag in _tag_list]
+                result['tag_id'] = [tag["href"] for tag in _tag_list]
+
+                job_body = soup.find("section", class_="JobDescription_JobDescription__VWfcb")
+
+                p_tags = job_body.find_all("p")
+                h3_tags = job_body.find_all("h3")
+
+                for i, p_tag in enumerate(p_tags):
+                    h3_tag = h3_tags[i - 1].text if i != 0 else "설명"
+                    if h3_tag not in self.tag2field_map:
+                        continue
+
+                    field_name = self.tag2field_map[h3_tag]
+                    if field_name == "tech_list":
+                        result[field_name] = [
+                            skill.text for skill in p_tag.find("div").find_all("div")
+                        ]
+                    else:
+                        result[field_name] = [
+                            line for lines in p_tag.text.split("<br>") for line in lines.split("• ") if line
+                        ]
+
+                postprocess_dict[url] = result
 
         return postprocess_dict
 

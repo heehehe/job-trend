@@ -10,6 +10,8 @@ credentials = service_account.Credentials.from_service_account_info(
 client = bigquery.Client(credentials=credentials, project=credentials.project_id,)
 table_name = st.secrets["database"]["table_name"]
 
+st.set_page_config(page_title="JobTrend", page_icon=":chart_with_upwards_trend:")
+
 @st.cache_data      # 여러번호출을 방지함.
 def get_unique_job_names():
     query = f"""
@@ -30,11 +32,31 @@ def get_unique_tech_stacks():
     result = client.query(query).result().to_dataframe()
     return result
 
+def get_openings_by_tech_stack(tech_filter):
+    query = f"""
+    SELECT COUNT(*) AS num_openings
+    FROM `{table_name}`, 
+    UNNEST(tech_list) as tech
+    WHERE {tech_filter}
+    """
+    result = client.query(query).result().to_dataframe()
+    return result['num_openings'].iloc[0]
+
+def get_openings_by_job_name(job_filter):
+    query = f"""
+    SELECT COUNT(*) AS num_openings
+    FROM `{table_name}`
+    WHERE {job_filter}
+    """
+    result = client.query(query).result().to_dataframe()
+    return result['num_openings'].iloc[0]
+
 job_names = get_unique_job_names()
 tech_stacks = get_unique_tech_stacks()
 def main():
-    st.title("JOB TREND for EVERYBODY")
 
+    st.title("JOB TREND for EVERYBODY")
+    st.subheader("📊Result")
     # 사이드바
     with st.sidebar:
         col1, col2 = st.columns([6, 3])
@@ -50,8 +72,7 @@ def main():
         deadline_date = st.date_input("Select a deadline")
     
     # 메인화면
-    st.write("## 📊Result")
-    tab1, tab2 = st.tabs(["🗃 Data", "📈 Chart"])
+    st.write()
     if search_button:
         # job_name 필터
         job_filter = f"job_name = '{job_name_selected}'" if job_name_selected != "All" else "TRUE"
@@ -79,9 +100,16 @@ def main():
         LIMIT 50
         """
         with st.spinner("Loading..."):
+            data = client.query(fin_query).result().to_dataframe()
+            data['tech_stacks'] = data['tech_stacks'].apply(lambda x: x.split(','))
+            
+            m1, m2, m3, m4, m5 = st.columns(5)
+            m2.metric("Count of Jobs", get_openings_by_job_name(job_filter))
+            m3.metric("Count of Tech Stacks", get_openings_by_tech_stack(tech_filter))
+            m4.metric("Total Companies", len(data))
+            
+            tab1, tab2 = st.tabs(["🗃 Data", "📈 Chart"])
             with tab1:
-                data = client.query(fin_query).result().to_dataframe()
-                data['tech_stacks'] = data['tech_stacks'].apply(lambda x: x.split(','))
                 st.dataframe(data = data,
                             column_config={
                                 "url": st.column_config.LinkColumn()

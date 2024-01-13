@@ -2,6 +2,8 @@ import streamlit as st
 from google.cloud import bigquery
 from google.oauth2 import service_account
 
+from utils.graph import job_graph, top_stack_graph
+
 # Construct a BigQuery client object.
 credentials = service_account.Credentials.from_service_account_info(
     st.secrets["gcp_service_account"]
@@ -30,6 +32,10 @@ def get_unique_tech_stacks():
     UNNEST(tech_list) as tech
     """
     result = client.query(query).result().to_dataframe()
+    result['tech'] = result['tech'].str.strip()
+    result['tech'] = result['tech'].str.capitalize()
+    result = result['tech'].unique()
+
     return result
 
 def get_openings_by_tech_stack(tech_filter):
@@ -54,7 +60,6 @@ def get_openings_by_job_name(job_filter):
 job_names = get_unique_job_names()
 tech_stacks = get_unique_tech_stacks()
 def main():
-
     st.title("JOB TREND for EVERYBODY")
     st.subheader("📊Result")
     # 사이드바
@@ -102,6 +107,7 @@ def main():
         with st.spinner("Loading..."):
             data = client.query(fin_query).result().to_dataframe()
             data['tech_stacks'] = data['tech_stacks'].apply(lambda x: x.split(','))
+            # data.to_csv('sample_data.csv', index=False)    # for debugging data...^^;
             
             m1, m2, m3, m4, m5 = st.columns(5)
             m2.metric("Count of Jobs", get_openings_by_job_name(job_filter))
@@ -115,7 +121,9 @@ def main():
                                 "url": st.column_config.LinkColumn()
                             })
             with tab2:
-                st.write("Working In Progress...😅")
+                st.info("Working In Progress...😅") 
+                st.plotly_chart(top_stack_graph(data['tech_stacks']))
+                st.plotly_chart(job_graph(data['job_name']))
 
 if __name__ == "__main__":
     main()

@@ -562,7 +562,10 @@ class CrawlingWanted(Crawling):
 
         for job_category, info_dict in position_content_dict.items():
             for url, content in info_dict.items():
-                result = {}
+                result = {
+                    "job_category": job_category,
+                    "job_name": self.job_category_id2name[job_category]
+                }
 
                 soup = BeautifulSoup(content, 'html')
 

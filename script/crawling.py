@@ -1,22 +1,25 @@
 import os
 import json
 import requests
+import time
+import logging
+import sys
+import re
+
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys 
-import time
-import logging
+
 from typing import Dict
-import sys
-import re 
+
 
 class Crawling:
     def __init__(self):
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36'
         }
-        self.os_type = sys.platform.lower()
+        self.driver = webdriver.Safari() if sys.platform.lower() == "darwin" else webdriver.Chrome()
+
         self.info_key2name = {
             "경력": "career",
             "학력": "academic_background",
@@ -36,11 +39,26 @@ class Crawling:
 
     def run(self, data_path: str):
         """
-        run all process of crawling and extract data
+        Run all process of crawling and extract data
         :param data_path: data path to write result data
         """
         pass
 
+    def scroll_down_page(self):
+        """
+        Extract full-page source if additional pages appear when scrolling down
+        :return page_source: extracted page source
+        """
+        page_source = ""
+        while True:
+            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(1)
+            if page_source == self.driver.page_source:
+                break
+            else:
+                page_source = self.driver.page_source
+
+        return page_source
 
 class CrawlingJumpit(Crawling):
     """
@@ -48,13 +66,8 @@ class CrawlingJumpit(Crawling):
     """
     def __init__(self):
         super().__init__()
-        
-        self.endpoint = "https://www.jumpit.co.kr"
-        if self.os_type =="darwin":
-            self.driver = webdriver.Safari()
-        else :
-            self.driver = webdriver.Chrome()
 
+        self.endpoint = "https://www.jumpit.co.kr"
         self.job_category_id2name = {
             1: "서버/백엔드 개발자",
             2: "프론트엔드 개발자",
@@ -86,24 +99,15 @@ class CrawlingJumpit(Crawling):
             self.driver.get(f"{self.endpoint}/positions?jobCategory={job_category}")
             time.sleep(1)
 
-            _page_source = ""
-            while True:
-                self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                time.sleep(1)
-                if _page_source == self.driver.page_source:
-                    break
-                else:
-                    _page_source = self.driver.page_source
+            page_source = self.scroll_down_page()
 
-            soup = BeautifulSoup(self.driver.page_source, 'html')
-
-            position_list = []
-            for a in soup.find_all("a"):
-                if a.get("href").startswith("/position/"):
-                    position_list.append(a.get("href"))
+            soup = BeautifulSoup(page_source, 'html')
+            position_list = [
+                a_tag["href"] for a_tag in soup.find_all("a") if a_tag.get("href", "").startswith("/position/")
+            ]
 
             job_dict[job_category] = {
-                "page_source": self.driver.page_source,
+                "page_source": page_source,
                 "position_list": position_list
             }
 
@@ -294,10 +298,6 @@ class CrawlingJobPlanet(Crawling) :
     def __init__(self) -> None:
         super().__init__()
         self.endpoint = "https://www.jobplanet.co.kr"
-        if self.os_type =="darwin":
-            self.driver = webdriver.Safari()
-        else :
-            self.driver = webdriver.Chrome()
 
     def get_url_list(self,get_once=False) -> dict[str,dict[str,str]]:
         def job_find_window(job_filter) :
@@ -466,10 +466,161 @@ class CrawlingJobPlanet(Crawling) :
         self.driver.close()
 
 
+class CrawlingWanted(Crawling):
+    """
+    Crawling of "https://www.wanted.co.kr"
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.endpoint = "https://www.wanted.co.kr"
+        self.job_parent_category = 518
+        self.job_category_id2name = {
+            10110: "소프트웨어 엔지니어",
+            873: "웹 개발자",
+            872: "서버 개발자",
+            669: "프론트엔드 개발자",
+            660: "자바 개발자",
+            900: "C,C++ 개발자",
+            899: "파이썬 개발자",
+            1634: "머신러닝 엔지니어",
+            674: "DevOps / 시스템 관리자",
+            665: "시스템,네트워크 관리자",
+            655: "데이터 엔지니어",
+            895: "Node.js 개발자",
+            677: "안드로이드 개발자",
+            678: "iOS 개발자",
+            658: "임베디드 개발자",
+            877: "개발 매니저",
+            1024: "데이터 사이언티스트",
+            1026: "기술지원",
+            676: "QA,테스트 엔지니어",
+            672: "하드웨어 엔지니어",
+            1025: "빅데이터 엔지니어",
+            671: "보안 엔지니어",
+            876: "프로덕트 매니저",
+            10111: "크로스플랫폼 앱 개발자",
+            1027: "블록체인 플랫폼 엔지니어",
+            10231: "DBA",
+            893: "PHP 개발자",
+            661: ".NET 개발자",
+            896: "영상,음성 엔지니어",
+            10230: "ERP전문가",
+            939: "웹 퍼블리셔",
+            898: "그래픽스 엔지니어",
+            795: "CTO,Chief Technology Officer",
+            10112: "VR 엔지니어",
+            1022: "BI 엔지니어",
+            894: "루비온레일즈 개발자",
+            793: "CIO,Chief Information Officer"
+        }
+        self.tag2field_map = {
+            "설명": "description",
+            "주요업무": "main_work",
+            "자격요건": "qualification",
+            "우대사항": "preferences",
+            "혜택 및 복지": "welfare",
+            "기술스택 ・ 툴": "tech_list"
+        }
+
+    def get_url_list(self):
+        job_dict = {}
+        for job_category in self.job_category_id2name:
+            self.driver.get(f"{self.endpoint}/wdlist/{self.job_parent_category}/{job_category}")
+
+            page_source = self.scroll_down_page()
+
+            soup = BeautifulSoup(page_source, 'html.parser')
+            ul_element = soup.find('ul', {'data-cy': 'job-list'})
+            position_list = [
+                a_tag['href'] for a_tag in ul_element.find_all('a') if a_tag.get('href', '').startswith('/wd/')
+            ]
+
+            job_dict[job_category] = {
+                "page_source": page_source,
+                "position_list": position_list
+            }
+
+        return job_dict
+
+    def get_recruit_content_info(self, job_dict):
+        position_content_dict = {}
+
+        for job_category, job_info in job_dict.items():
+            content_dict = {}
+            for position_url in job_info["position_list"]:
+                self.driver.get(f"self.endpoint{position_url}")
+                time.sleep(0.1)
+                content_dict[position_url] = self.driver.page_source
+
+            position_content_dict[job_category] = content_dict
+
+        return position_content_dict
+
+    def postprocess(self, position_content_dict):
+        postprocess_dict = {}
+
+        for job_category, info_dict in position_content_dict.items():
+            for url, content in info_dict.items():
+                result = {
+                    "job_category": job_category,
+                    "job_name": self.job_category_id2name[job_category]
+                }
+
+                soup = BeautifulSoup(content, 'html')
+
+                job_header = soup.find("section", class_="JobHeader_className__HttDA")
+
+                result['title'] = job_header.find("h2").text
+
+                _company_info = job_header.find("span", class_="JobHeader_companyNameText__uuJyu")
+                result['company_name'] = _company_info.text
+                result['company_id'] = _company_info.find("a")["href"]
+
+                _tag_list = job_header.find("div", class_="Tags_tagsClass__mvehZ").find_all("a")
+                result['tag_name'] = [tag.text.lstrip("#") for tag in _tag_list]
+                result['tag_id'] = [tag["href"] for tag in _tag_list]
+
+                job_body = soup.find("section", class_="JobDescription_JobDescription__VWfcb")
+
+                p_tags = job_body.find_all("p")
+                h3_tags = job_body.find_all("h3")
+
+                for i, p_tag in enumerate(p_tags):
+                    h3_tag = h3_tags[i - 1].text if i != 0 else "설명"
+                    if h3_tag not in self.tag2field_map:
+                        continue
+
+                    field_name = self.tag2field_map[h3_tag]
+                    if field_name == "tech_list":
+                        result[field_name] = [
+                            skill.text for skill in p_tag.find("div").find_all("div")
+                        ]
+                    else:
+                        result[field_name] = [
+                            line for lines in p_tag.text.split("<br>") for line in lines.split("• ") if line
+                        ]
+
+                postprocess_dict[url] = result
+
+        return postprocess_dict
+
+    def run(self, data_path: str):
+        job_dict = self.get_url_list()
+        position_content_dict = self.get_recruit_content_info(job_dict)
+        result_dict = self.postprocess(position_content_dict)
+
+        with open(os.path.join(data_path, "wanted.content.info.jsonl"), "w") as f:
+            for url, info in result_dict.items():
+                info["url"] = f"{self.endpoint}{url}"
+                f.write(json.dumps(info) + "\n")
+
+
 CRAWLING_CLASS = {
     "jumpit": CrawlingJumpit,
     "saramin": CrawlingSaramin,
-    "jobplanet": CrawlingJobPlanet
+    "jobplanet": CrawlingJobPlanet,
+    "wanted": CrawlingWanted
 }
 
 

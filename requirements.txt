@@ -4,3 +4,4 @@ google-cloud-bigquery==3.13.0
 PyYAML==6.0.1
 streamlit==1.23.1
 db-dtypes==1.1.1
+plotly==5.18.0

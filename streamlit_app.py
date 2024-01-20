@@ -2,7 +2,7 @@ import streamlit as st
 from google.cloud import bigquery
 from google.oauth2 import service_account
 
-from utils.graph import job_graph, top_stack_graph
+from utils.graph import top_stack_bar, job_graph_pie
 
 # Construct a BigQuery client object.
 credentials = service_account.Credentials.from_service_account_info(
@@ -122,8 +122,8 @@ def main():
                             })
             with tab2:
                 st.info("Working In Progress...😅") 
-                st.plotly_chart(top_stack_graph(data['tech_stacks']))
-                st.plotly_chart(job_graph(data['job_name']))
+                st.plotly_chart(top_stack_bar(data['tech_stacks']))
+                st.plotly_chart(job_graph_pie(data['job_name']))
 
 if __name__ == "__main__":
     main()

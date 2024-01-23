@@ -12,6 +12,7 @@ WITH
 
 SELECT job_jumpit.job_category as jumpit_category,
        job_wanted.job_category as wanted_category,
-       job_jumpit.job_name as name
-FROM job_jumpit, job_wanted
-GROUP BY name
+       COALESCE(job_jumpit.job_name, job_wanted.job_name) AS name
+FROM job_jumpit
+FULL OUTER JOIN job_wanted
+ON job_jumpit.job_name = job_wanted.job_name

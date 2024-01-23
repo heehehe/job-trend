@@ -12,6 +12,7 @@ WITH
 
 SELECT company_jumpit.company_url as jumpit_url,
        company_wanted.company_url as wanted_url,
-       company_jumpit.job_name as name
-FROM company_jumpit, company_wanted
-GROUP BY name
+       COALESCE(company_jumpit.company_name, company_wanted.company_name) AS name
+FROM company_jumpit
+FULL OUTER JOIN company_wanted
+ON company_jumpit.company_name = company_wanted.company_name

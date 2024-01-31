@@ -18,7 +18,7 @@ class Crawling:
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36'
         }
-        self.driver = webdriver.Safari() if sys.platform.lower() == "darwin" else webdriver.Chrome()
+        self.driver = webdriver.Safari if sys.platform.lower() == "darwin" else webdriver.Chrome
 
         self.info_key2name = {
             "경력": "career",
@@ -44,26 +44,28 @@ class Crawling:
         """
         pass
 
-    def scroll_down_page(self):
+    def scroll_down_page(self, driver):
         """
         Extract full-page source if additional pages appear when scrolling down
         :return page_source: extracted page source
         """
         page_source = ""
         while True:
-            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(1)
-            if page_source == self.driver.page_source:
+            if page_source == driver.page_source:
                 break
             else:
-                page_source = self.driver.page_source
+                page_source = driver.page_source
 
         return page_source
+
 
 class CrawlingJumpit(Crawling):
     """
     Crawling of "https://www.jumpit.co.kr"
     """
+
     def __init__(self):
         super().__init__()
 
@@ -91,15 +93,16 @@ class CrawlingJumpit(Crawling):
             22: "블록체인",
             21: "기술지원"
         }
-        
 
     def get_url_list(self):
+        driver = self.driver()
+
         job_dict = {}
         for job_category in range(1, 23):
-            self.driver.get(f"{self.endpoint}/positions?jobCategory={job_category}")
+            driver.get(f"{self.endpoint}/positions?jobCategory={job_category}")
             time.sleep(1)
 
-            page_source = self.scroll_down_page()
+            page_source = self.scroll_down_page(driver)
 
             soup = BeautifulSoup(page_source, 'html')
             position_list = [
@@ -111,18 +114,24 @@ class CrawlingJumpit(Crawling):
                 "position_list": position_list
             }
 
+        driver.close()
+
         return job_dict
 
     def get_recruit_content_info(self, job_dict):
+        driver = self.driver()
+
         position_content_dict = {}
         for job_category, job_info in job_dict.items():
             content_dict = {}
             for position_url in job_info["position_list"]:
-                self.driver.get("https://www.jumpit.co.kr" + position_url)
+                driver.get("https://www.jumpit.co.kr" + position_url)
                 time.sleep(0.1)
                 content_dict[position_url] = self.driver.page_source
 
             position_content_dict[job_category] = content_dict
+
+        driver.close()
 
         return position_content_dict
 
@@ -203,6 +212,7 @@ class CrawlingSaramin(Crawling):
     """
     Crawling of "https://www.saramin.co.kr" (cannot distinguish details of content)
     """
+
     def __init__(self):
         super().__init__()
         self.endpoint = "https://www.saramin.co.kr"
@@ -213,6 +223,7 @@ class CrawlingSaramin(Crawling):
         :param category_id: id of recruit category
         :return: dict of recruitment page urls with title (key: url / value: title)
         """
+
         def _crawl_id(page_number: int) -> Dict[str, str]:
             """ Crawling id list for specific page number on recruitment page
             :param page_number: number of page to crawl
@@ -291,179 +302,176 @@ class CrawlingSaramin(Crawling):
                 ]) + "\n")
 
 
-class CrawlingJobPlanet(Crawling) :
+class CrawlingJobPlanet(Crawling):
     """
     Crawling of "https://www.jobplanet.co.kr" 
     """
+
     def __init__(self) -> None:
         super().__init__()
         self.endpoint = "https://www.jobplanet.co.kr"
 
-    def get_url_list(self,get_once=False) -> dict[str,dict[str,str]]:
-        def job_find_window(job_filter) :
-            self.driver.find_element(By.CLASS_NAME,"jply_btn_sm.inner_text.jf_b2").click()
-            dev_tab = self.driver.find_element(By.CLASS_NAME,"filter_depth1_list").find_elements(By.CLASS_NAME,"filter_depth1_btn.jf_b1")
+    def get_url_list(self, get_once=False) -> Dict[str, Dict[str, str]]:
+        driver = self.driver()
+
+        def job_find_window(job_filter):
+            driver.find_element(By.CLASS_NAME, "jply_btn_sm.inner_text.jf_b2").click()
+            dev_tab = driver.find_element(By.CLASS_NAME, "filter_depth1_list").find_elements(By.CLASS_NAME,
+                                                                                             "filter_depth1_btn.jf_b1")
             for i in dev_tab:
-                if i.text == job_filter :
+                if i.text == job_filter:
                     i.click()
-                else :
+                else:
                     continue
 
-        def apply_btn() :
-            panel = self.driver.find_element(By.CLASS_NAME,"panel_bottom")
-            apply_btn = panel.find_element(By.CLASS_NAME,"jply_btn_sm.ty_solid")
-            apply_btn.click()
+        def apply_btn():
+            panel = driver.find_element(By.CLASS_NAME, "panel_bottom")
+            applied_btn = panel.find_element(By.CLASS_NAME, "jply_btn_sm.ty_solid")
+            applied_btn.click()
 
-        def release_checked(before_obj) :
-            clicked_list = before_obj.find_elements(By.CLASS_NAME,"jp-checkbox-checked_fill.checked")   
-            for clk in clicked_list :
-                clk.click() # 이전 직무 checkbox release
+        def release_checked(before_obj):
+            clicked_list = before_obj.find_elements(By.CLASS_NAME, "jp-checkbox-checked_fill.checked")
+            for clk in clicked_list:
+                clk.click()  # 이전 직무 checkbox release
 
-
-        self.driver.get(self.endpoint+"/job")
+        driver.get(self.endpoint + "/job")
         time.sleep(1)
 
-        for job_filter in ["개발","데이터"] :
+        for job_filter in ["개발", "데이터"]:
             # job_find_window(job_filter)
-            job_chkbox = [0]*10
+            job_chkbox = [0] * 10
             job_list_idx = 0
             job_dict = {}
 
-            while len(job_chkbox) > job_list_idx :
+            while len(job_chkbox) > job_list_idx:
                 job_find_window(job_filter)
-                job_chkbox = self.driver.find_elements(By.CLASS_NAME,"jply_checkbox_box")
+                job_chkbox = driver.find_elements(By.CLASS_NAME, "jply_checkbox_box")
                 current_obj = job_chkbox[job_list_idx]  # index = 0은 직무 전체이므로 패스
-                before_obj = job_chkbox[job_list_idx-1]
+                before_obj = job_chkbox[job_list_idx - 1]
                 release_checked(before_obj)
 
-                job_name = current_obj.find_element(By.CLASS_NAME,"jf_b1").text
-                
-                if not job_name or job_name == f"{job_filter} 전체" :
-                    job_list_idx +=1
+                job_name = current_obj.find_element(By.CLASS_NAME, "jf_b1").text
+
+                if not job_name or job_name == f"{job_filter} 전체":
+                    job_list_idx += 1
                     apply_btn()
                     continue
-                
 
-
-                unchk_box = current_obj.find_element(By.CLASS_NAME,"jp-checkbox-unchecked.unchecked")
+                unchk_box = current_obj.find_element(By.CLASS_NAME, "jp-checkbox-unchecked.unchecked")
                 unchk_box.click()
-                    
+
                 apply_btn()
 
                 time.sleep(1)
-                
+
                 _page_source = ""
-                
+
                 while True:
-                    self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
                     time.sleep(1)
-                    if get_once :
-                        self.driver.execute_script("window.scrollTo(0, 0);")
+                    if get_once:
+                        driver.execute_script("window.scrollTo(0, 0);")
                         break
 
-                    if _page_source == self.driver.page_source:
-                        self.driver.execute_script("window.scrollTo(0, 0);")
+                    if _page_source == driver.page_source:
+                        driver.execute_script("window.scrollTo(0, 0);")
                         break
                     else:
-                        _page_source = self.driver.page_source
-                    
+                        _page_source = driver.page_source
 
-
-                soup = BeautifulSoup(self.driver.page_source,"html.parser")
+                soup = BeautifulSoup(driver.page_source, "html.parser")
                 card_list = soup.select("div.item-card")
-                
+
                 href_list = [card.select_one("a").get("href") for card in card_list]
                 content_dict = {}
 
-                for href in href_list :
+                for href in href_list:
                     url = "https://www.jobplanet.co.kr" + href
                     content_dict[href] = url
                 job_dict[job_name] = content_dict
-                
+
                 job_list_idx += 1
-                
+
                 time.sleep(1)
-                if get_once : break
+                if get_once: break
 
             job_find_window(job_filter)
-            job_chkbox = self.driver.find_elements(By.CLASS_NAME,"jply_checkbox_box")
-            before_obj = job_chkbox[job_list_idx-1]
+            job_chkbox = driver.find_elements(By.CLASS_NAME, "jply_checkbox_box")
+            before_obj = job_chkbox[job_list_idx - 1]
             release_checked(before_obj)
             apply_btn()
-        
+
+        driver.close()
+
         return job_dict
 
-    def postprocess(self,job_dict:dict) -> dict:
+    def postprocess(self, job_dict: dict) -> dict:
+        driver = self.driver()
+
         postprocess_dict = {}
-        
-        for job_name,info_dict in job_dict.items() :
-            
-            for job_detail_href, url in info_dict.items() :
-                
-                self.driver.get(url)
+
+        for job_name, info_dict in job_dict.items():
+
+            for job_detail_href, url in info_dict.items():
+
+                driver.get(url)
                 time.sleep(1)
 
-                soup = BeautifulSoup(self.driver.page_source,"html.parser")
-                dd_list= soup.select("dd.recruitment-summary__dd")
+                soup = BeautifulSoup(driver.page_source, "html.parser")
+                dd_list = soup.select("dd.recruitment-summary__dd")
                 dt_list = soup.select("dt.recruitment-summary__dt")
 
-            
-                deadline = None                
+                deadline = None
                 tech_list = []
                 extra_info = {}
-                for dt_num in range(len(dt_list)) :
+                for dt_num in range(len(dt_list)):
                     key = dt_list[dt_num].get_text(strip=True)
                     value = dd_list[dt_num].get_text(strip=True)
-                    if  key == "스킬" :                                                
-                        tech_list = list(map(lambda x: x.strip(),value.split(",")))
-                                            
-                    elif key == "마감일" :                        
+                    if key == "스킬":
+                        tech_list = list(map(lambda x: x.strip(), value.split(",")))
+
+                    elif key == "마감일":
                         date_pat = re.compile("\d+\.\d+\.\d+")
                         deadline_pat = date_pat.search(value)
                         if "상시" in value or deadline_pat is None:
                             deadline = ""
-                        else :                            
+                        else:
                             deadline = deadline_pat.group().strip()
                         extra_info[self.info_key2name["마감일"]] = deadline
 
-                    elif key in self.info_key2name.keys() :
-                        
-                        extra_info[self.info_key2name[key]] = value
-                    
-                        
+                    elif key in self.info_key2name.keys():
 
-                title= soup.select_one('h1.ttl').get_text(strip=True)
-                
+                        extra_info[self.info_key2name[key]] = value
+
+                title = soup.select_one('h1.ttl').get_text(strip=True)
+
                 company = soup.select_one("span.company_name")
                 company_id = company.find("a").get('href')
                 company_name = company.get_text(strip=True)
-                
-                
+
                 postprocess_dict[url] = {
-                            "job_name": job_name,
-                            "title": title,
-                            "company_name": company_name,
-                            "company_id": company_id,
-                            "tag_id": [],
-                            "tag_name": [],
-                            "tech_list": tech_list
-                        }
+                    "job_name": job_name,
+                    "title": title,
+                    "company_name": company_name,
+                    "company_id": company_id,
+                    "tag_id": [],
+                    "tag_name": [],
+                    "tech_list": tech_list
+                }
                 postprocess_dict[url].update(extra_info)
-            
+
+        driver.close()
+
         return postprocess_dict
-        
 
     def run(self, data_path: str):
         job_dict = self.get_url_list()
         result_dict = self.postprocess(job_dict)
 
-
         with open(os.path.join(data_path, "jobplanet.content.info.jsonl"), "w") as f:
             for url, info in result_dict.items():
                 info["url"] = f"{self.endpoint}{url}"
                 f.write(json.dumps(info) + "\n")
-    
-        self.driver.close()
 
 
 class CrawlingWanted(Crawling):
@@ -524,11 +532,13 @@ class CrawlingWanted(Crawling):
         }
 
     def get_url_list(self):
+        driver = self.driver()
+
         job_dict = {}
         for job_category in self.job_category_id2name:
-            self.driver.get(f"{self.endpoint}/wdlist/{self.job_parent_category}/{job_category}")
+            driver.get(f"{self.endpoint}/wdlist/{self.job_parent_category}/{job_category}")
 
-            page_source = self.scroll_down_page()
+            page_source = self.scroll_down_page(driver)
 
             soup = BeautifulSoup(page_source, 'html.parser')
             ul_element = soup.find('ul', {'data-cy': 'job-list'})
@@ -541,19 +551,25 @@ class CrawlingWanted(Crawling):
                 "position_list": position_list
             }
 
+        driver.close()
+
         return job_dict
 
     def get_recruit_content_info(self, job_dict):
+        driver = self.driver()
+
         position_content_dict = {}
 
         for job_category, job_info in job_dict.items():
             content_dict = {}
             for position_url in job_info["position_list"]:
-                self.driver.get(f"self.endpoint{position_url}")
+                driver.get(f"self.endpoint{position_url}")
                 time.sleep(0.1)
-                content_dict[position_url] = self.driver.page_source
+                content_dict[position_url] = driver.page_source
 
             position_content_dict[job_category] = content_dict
+
+        driver.close()
 
         return position_content_dict
 
@@ -639,6 +655,7 @@ def main(args):
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--site_type", help="type of site", default="jobplanet")
     parser.add_argument("-l", "--log_type", help="type of log", default="info")

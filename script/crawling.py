@@ -14,12 +14,12 @@ from typing import Dict
 
 
 class Crawling:
-    def __init__(self):
+    def __init__(self, data_path=os.getcwd()):
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36'
         }
         self.driver = webdriver.Safari if sys.platform.lower() == "darwin" else webdriver.Chrome
-
+        self.data_path = data_path
         self.info_key2name = {
             "경력": "career",
             "학력": "academic_background",
@@ -37,10 +37,9 @@ class Crawling:
             response = s.get(url, headers=self.headers)
         return response
 
-    def run(self, data_path: str):
+    def run(self):
         """
         Run all process of crawling and extract data
-        :param data_path: data path to write result data
         """
         pass
 
@@ -125,7 +124,7 @@ class CrawlingJumpit(Crawling):
         for job_category, job_info in job_dict.items():
             content_dict = {}
             for position_url in job_info["position_list"]:
-                driver.get("https://www.jumpit.co.kr" + position_url)
+                driver.get(f"{self.endpoint}{position_url}")
                 time.sleep(0.1)
                 content_dict[position_url] = self.driver.page_source
 
@@ -136,6 +135,8 @@ class CrawlingJumpit(Crawling):
         return position_content_dict
 
     def postprocess(self, position_content_dict):
+        file = open(os.path.join(self.data_path, "jumpit.result.jsonl"), "w")
+
         postprocess_dict = {}
 
         for job_category, info_dict in position_content_dict.items():
@@ -149,10 +150,14 @@ class CrawlingJumpit(Crawling):
                 try:
                     company = soup.find("div", class_="position_title_box_desc").find("a")
                 except:
+                    company = None
                     for a in soup.find_all(""):
                         if a.get("href", "").startswith("/company"):
                             company = a
                             break
+
+                if not company:
+                    continue
 
                 company_name = company.text
                 company_id = company.get("href")
@@ -183,7 +188,8 @@ class CrawlingJumpit(Crawling):
                             value = ""
                         extra_info[self.info_key2name[key]] = value
 
-                postprocess_dict[url] = {
+                result = {
+                    "url": f"{self.endpoint}{url}",
                     "job_category": job_category,
                     "job_name": self.job_category_id2name[job_category],
                     "title": title,
@@ -193,23 +199,22 @@ class CrawlingJumpit(Crawling):
                     "tag_name": list(tag_info.values()),
                     "tech_list": tech_list
                 }
-                postprocess_dict[url].update(extra_info)
+                result.update(extra_info)
+                postprocess_dict[url] = result
+                file.write(json.dumps(result) + "\n")
+
+        file.close()
 
         return postprocess_dict
 
-    def run(self, data_path: str):
+    def run(self):
         job_dict = self.get_url_list()
         position_content_dict = self.get_recruit_content_info(job_dict)
         result_dict = self.postprocess(position_content_dict)
-
-        with open(os.path.join(data_path, "jumpit.content.info.jsonl"), "w") as f:
-            for url, info in result_dict.items():
-                info["url"] = f"{self.endpoint}{url}"
-                f.write(json.dumps(info) + "\n")
-
+        return result_dict
 
 class CrawlingSaramin(Crawling):
-    """
+    """ (deprecated)
     Crawling of "https://www.saramin.co.kr" (cannot distinguish details of content)
     """
 
@@ -288,14 +293,13 @@ class CrawlingSaramin(Crawling):
 
         return recruit_content_dict
 
-    def run(self, data_path: str):
+    def run(self):
         """
         run all process of crawling and extract data
-        :param data_path: data path to write result data
         """
         recruit_content_infos = self.get_recruit_content_info()
 
-        with open(os.path.join(data_path, f"url.{args.site_type}.tsv"), "w") as f:
+        with open(os.path.join(self.data_path, f"url.{args.site_type}.tsv"), "w") as f:
             for url, info in recruit_content_infos.items():
                 f.write("\t".join([
                     url, info.get("title", ""), info.get("content", "")
@@ -316,8 +320,10 @@ class CrawlingJobPlanet(Crawling):
 
         def job_find_window(job_filter):
             driver.find_element(By.CLASS_NAME, "jply_btn_sm.inner_text.jf_b2").click()
-            dev_tab = driver.find_element(By.CLASS_NAME, "filter_depth1_list").find_elements(By.CLASS_NAME,
-                                                                                             "filter_depth1_btn.jf_b1")
+            dev_tab = driver.find_element(
+                By.CLASS_NAME, "filter_depth1_list"
+            ).find_elements(By.CLASS_NAME, "filter_depth1_btn.jf_b1")
+
             for i in dev_tab:
                 if i.text == job_filter:
                     i.click()
@@ -337,11 +343,12 @@ class CrawlingJobPlanet(Crawling):
         driver.get(self.endpoint + "/job")
         time.sleep(1)
 
+        job_dict = {}
+
         for job_filter in ["개발", "데이터"]:
             # job_find_window(job_filter)
             job_chkbox = [0] * 10
             job_list_idx = 0
-            job_dict = {}
 
             while len(job_chkbox) > job_list_idx:
                 job_find_window(job_filter)
@@ -386,14 +393,15 @@ class CrawlingJobPlanet(Crawling):
                 content_dict = {}
 
                 for href in href_list:
-                    url = "https://www.jobplanet.co.kr" + href
+                    url = f"{self.endpoint}{href}"
                     content_dict[href] = url
                 job_dict[job_name] = content_dict
 
                 job_list_idx += 1
 
                 time.sleep(1)
-                if get_once: break
+                if get_once:
+                    break
 
             job_find_window(job_filter)
             job_chkbox = driver.find_elements(By.CLASS_NAME, "jply_checkbox_box")
@@ -406,6 +414,7 @@ class CrawlingJobPlanet(Crawling):
         return job_dict
 
     def postprocess(self, job_dict: dict) -> dict:
+        file = open(os.path.join(self.data_path, "jobplanet.result.jsonl"), "w")
         driver = self.driver()
 
         postprocess_dict = {}
@@ -449,7 +458,8 @@ class CrawlingJobPlanet(Crawling):
                 company_id = company.find("a").get('href')
                 company_name = company.get_text(strip=True)
 
-                postprocess_dict[url] = {
+                result = {
+                    "url": f"{self.endpoint}{url}",
                     "job_name": job_name,
                     "title": title,
                     "company_name": company_name,
@@ -458,21 +468,20 @@ class CrawlingJobPlanet(Crawling):
                     "tag_name": [],
                     "tech_list": tech_list
                 }
-                postprocess_dict[url].update(extra_info)
+                result.update(extra_info)
 
+                postprocess_dict[url] = result
+                file.write(json.dumps(result) + "\n")
+
+        file.close()
         driver.close()
 
         return postprocess_dict
 
-    def run(self, data_path: str):
+    def run(self):
         job_dict = self.get_url_list()
         result_dict = self.postprocess(job_dict)
-
-        with open(os.path.join(data_path, "jobplanet.content.info.jsonl"), "w") as f:
-            for url, info in result_dict.items():
-                info["url"] = f"{self.endpoint}{url}"
-                f.write(json.dumps(info) + "\n")
-
+        return result_dict
 
 class CrawlingWanted(Crawling):
     """
@@ -574,11 +583,14 @@ class CrawlingWanted(Crawling):
         return position_content_dict
 
     def postprocess(self, position_content_dict):
+        file = open(os.path.join(self.data_path, "wanted.result.jsonl"), "w")
+
         postprocess_dict = {}
 
         for job_category, info_dict in position_content_dict.items():
             for url, content in info_dict.items():
                 result = {
+                    "url": f"{self.endpoint}{url}",
                     "job_category": job_category,
                     "job_name": self.job_category_id2name[job_category]
                 }
@@ -618,18 +630,17 @@ class CrawlingWanted(Crawling):
                         ]
 
                 postprocess_dict[url] = result
+                file.write(json.dumps(result) + "\n")
+
+        file.close()
 
         return postprocess_dict
 
-    def run(self, data_path: str):
+    def run(self):
         job_dict = self.get_url_list()
         position_content_dict = self.get_recruit_content_info(job_dict)
         result_dict = self.postprocess(position_content_dict)
-
-        with open(os.path.join(data_path, "wanted.content.info.jsonl"), "w") as f:
-            for url, info in result_dict.items():
-                info["url"] = f"{self.endpoint}{url}"
-                f.write(json.dumps(info) + "\n")
+        return result_dict
 
 
 CRAWLING_CLASS = {
@@ -647,10 +658,15 @@ def main(args):
     )
 
     logging.info("[INFO] Set instance of crawling")
-    crawling = CRAWLING_CLASS.get(args.site_type.lower(), Crawling)()
+    crawling = CRAWLING_CLASS.get(args.site_type.lower(), Crawling)(data_path=args.data_path)
 
     logging.info("[INFO] Get recruit content info")
-    crawling.run(args.data_path)
+    if args.method == "all":
+        crawling.run()
+    else:
+        method = getattr(crawling, args.method, None)
+        if method:
+            method()
 
 
 if __name__ == "__main__":
@@ -659,6 +675,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--site_type", help="type of site", default="jobplanet")
     parser.add_argument("-l", "--log_type", help="type of log", default="info")
-    parser.add_argument("-d", "--data_path", help="path of data")
+    parser.add_argument("-d", "--data_path", help="path of data", default=os.getcwd())
+    parser.add_argument("-m", "--method", help="method to execute", default="all")
+
     args = parser.parse_args()
     main(args)

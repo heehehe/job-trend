@@ -12,8 +12,10 @@ Job Trend 프로젝트는 이러한 궁금증에서 시작하게 되었습니다
 ## Getting Started
 ### _Prerequisites_
 - Python 3.8
-- Google Cloud Platform console (for BigQuery)
-- Redash
+- Google Cloud Platform console - BigQuery
+- dbt(data build tool)
+- Streamlit (or Redash)
+
 ### _Setup_
 ```bash
 ./initialize.sh
@@ -29,17 +31,18 @@ Job Trend 프로젝트는 이러한 궁금증에서 시작하게 되었습니다
 ### _Data Sources_
 - 여러 채용공고 사이트들로부터 개발자 채용공고 정보를 추출합니다.
   - [x] 점핏 (https://www.jumpit.co.kr)
-  - [ ] 잡플래닛 (https://www.jobplanet.co.kr)
-  - [ ] 원티드 (https://www.wanted.co.kr)
-  - [ ] 잡코리아 (https://www.jobkorea.co.kr)
+  - [x] 잡플래닛 (https://www.jobplanet.co.kr)
+  - [x] 원티드 (https://www.wanted.co.kr)
   - [ ] ...
 
 ### _Extract_
 - `Selenium`을 이용하여 동적 크롤링을 진행합니다.
 - 직무별 채용공고 url을 추출한 뒤, 각 url에 접근하여 page source를 추출합니다.
 
-### _Transform_
-- 추출한 각 사이트 채용공고별 page source들을 아래와 같은 정보로 변환합니다.  
+### _Load_
+- 추출된 데이터를 Data Warehouse에 저장합니다.
+- Data Warehouse로는 `Google BigQuery`를 이용합니다.
+- 저장되는 스키마는 각 사이트별로 상이하며, 대체적으로 아래와 같은 필드를 지니고 있습니다.
     - 공고 제목
     - 회사명
     - 직무
@@ -48,18 +51,44 @@ Job Trend 프로젝트는 이러한 궁금증에서 시작하게 되었습니다
     - 복지 및 혜택
     - ...
 
-### _Load_
-- 변환된 데이터를 Data Warehouse에 저장합니다.
-- Data Warehouse로는 `Google BigQuery`를 이용합니다. 
-- 데이터는 아래와 같은 schema를 기준으로 저장됩니다. (future work)
-  <br><img src="./img/db_schema.png" width=50%>
+### _Transform_
+- dbt(data build tool)을 이용하여 아래와 같은 프로세스로 각 사이트 채용공고별 정보를 통합시킵니다.
+```mermaid
+flowchart LR
+jumpit --> job_jumpit
+wanted --> job_wanted
+jobplanet --> job_jobplanet
+job_jumpit --> job
+job_wanted --> job
+job_jobplanet --> job
+job --> content_jumpit
+job --> content_wanted
+job --> content_jobplanet
+
+jumpit --> content_jumpit
+wanted --> content_wanted
+jobplanet --> content_jobplanet
+content_jumpit --> content
+content_wanted --> content
+content_jobplanet --> content
+
+jumpit --> company_jumpit
+wanted --> company_wanted
+jobplanet --> company_jobplanet
+company_jumpit --> company
+company_wanted --> company
+company_jobplanet --> company
+company --> content_jumpit
+company --> content_wanted
+company --> content_jobplanet
+```
 
 ### _Batch Processing_
 - `Airflow`를 통해 기반으로 일별 batch processing을 통해 데이터를 업데이트 합니다.
-- `Kubernetes(k8s)` 기반의 환경에서 Airflow를 구동시킵니다.
+- `Terraform` 및 `Ansible`을 이용하여 k8s 기반의 환경에서 Airflow를 구동시킵니다.
 
 ### _Visualization_
-- `Redash`를 통해 SQL문을 기반으로 대시보드를 생성합니다.
+- `Streamlit` 및 `Redash`를 통해 SQL문을 기반으로 대시보드를 생성합니다.
 - 직무별 상위 기술스택 및 기술스택별 상위 직무 등의 정보를 Bar 및 Pie chart 뿐만 아니라, Sankey 및 Sunburst Sequence chart 등을 통해 제공합니다. 
 - 직무(JOB), 기술스택(TECH STACK), 마감일(DEADLINE) parameter를 통해 동적으로 반응하는 대시보드를 구현합니다.
   ![Dashboard](./img/dashboard.jpg)

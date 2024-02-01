@@ -14,7 +14,7 @@ from typing import Dict
 
 
 class Crawling:
-    def __init__(self, data_path=os.getcwd()):
+    def __init__(self, data_path=os.getcwd(), site_name=""):
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36'
         }
@@ -25,6 +25,12 @@ class Crawling:
             "학력": "academic_background",
             "마감일": "deadline",
             "근무지역": "location"
+        }
+        self.site_name = site_name
+        self.filenames = {
+            "url_list": os.path.join(self.data_path, f"{self.site_name}.url_list.json"),
+            "content_info": os.path.join(self.data_path, f"{self.site_name}.content_info.json"),
+            "result": os.path.join(self.data_path, f"{self.site_name}.result.jsonl")
         }
 
     def requests_get(self, url: str) -> requests.Response:
@@ -65,9 +71,8 @@ class CrawlingJumpit(Crawling):
     Crawling of "https://www.jumpit.co.kr"
     """
 
-    def __init__(self):
-        super().__init__()
-
+    def __init__(self, data_path=os.getcwd(), site_name="jumpit"):
+        super().__init__(data_path=data_path, site_name=site_name)
         self.endpoint = "https://www.jumpit.co.kr"
         self.job_category_id2name = {
             1: "서버/백엔드 개발자",
@@ -94,10 +99,18 @@ class CrawlingJumpit(Crawling):
         }
 
     def get_url_list(self):
+        filename = self.filenames["url_list"]
         driver = self.driver()
 
         job_dict = {}
+        if os.path.exists(filename):
+            with open(filename) as f:
+                job_dict = json.load(f)
+
         for job_category in range(1, 23):
+            if job_category in job_dict:
+                continue
+
             driver.get(f"{self.endpoint}/positions?jobCategory={job_category}")
             time.sleep(1)
 
@@ -113,15 +126,33 @@ class CrawlingJumpit(Crawling):
                 "position_list": position_list
             }
 
+            with open(filename, "w") as f:
+                json.dump(job_dict, f)
+
         driver.close()
 
         return job_dict
 
-    def get_recruit_content_info(self, job_dict):
+    def get_recruit_content_info(self, job_dict=None):
+        if job_dict is None:
+            if os.path.exists(self.filenames["url_list"]):
+                with open(self.filenames["url_list"]) as f:
+                    job_dict = json.load(f)
+            else:
+                job_dict = {}
+
+        filename = self.filenames["content_info"]
         driver = self.driver()
 
         position_content_dict = {}
+        if os.path.exists(filename):
+            with open(filename) as f:
+                position_content_dict = json.load(f)
+
         for job_category, job_info in job_dict.items():
+            if job_category in position_content_dict:
+                continue
+
             content_dict = {}
             for position_url in job_info["position_list"]:
                 driver.get(f"{self.endpoint}{position_url}")
@@ -130,14 +161,20 @@ class CrawlingJumpit(Crawling):
 
             position_content_dict[job_category] = content_dict
 
+            with open(filename, "w") as f:
+                json.dump(position_content_dict, f)
+
         driver.close()
 
         return position_content_dict
 
     def postprocess(self, position_content_dict):
-        file = open(os.path.join(self.data_path, "jumpit.result.jsonl"), "w")
+        file = open(self.filenames["result"], "w")
 
         postprocess_dict = {}
+        if os.path.exists(self.filenames["content_info"]):
+            with open(self.filenames["content_info"]) as f:
+                postprocess_dict = json.load(f)
 
         for job_category, info_dict in position_content_dict.items():
             if job_category not in self.job_category_id2name:
@@ -213,14 +250,16 @@ class CrawlingJumpit(Crawling):
         result_dict = self.postprocess(position_content_dict)
         return result_dict
 
+
 class CrawlingSaramin(Crawling):
     """ (deprecated)
     Crawling of "https://www.saramin.co.kr" (cannot distinguish details of content)
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, data_path=os.getcwd()):
+        super().__init__(data_path=data_path)
         self.endpoint = "https://www.saramin.co.kr"
+        self.site_name = "saramin"
 
     def get_id_dict(self, category_id: int = 83) -> Dict[str, str]:
         """
@@ -299,7 +338,7 @@ class CrawlingSaramin(Crawling):
         """
         recruit_content_infos = self.get_recruit_content_info()
 
-        with open(os.path.join(self.data_path, f"url.{args.site_type}.tsv"), "w") as f:
+        with open(os.path.join(self.data_path, f"url.{self.site_name}.tsv"), "w") as f:
             for url, info in recruit_content_infos.items():
                 f.write("\t".join([
                     url, info.get("title", ""), info.get("content", "")
@@ -311,13 +350,12 @@ class CrawlingJobPlanet(Crawling):
     Crawling of "https://www.jobplanet.co.kr" 
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, data_path=os.getcwd(), site_name="jobplanet") -> None:
+        super().__init__(data_path=data_path, site_name=site_name)
         self.endpoint = "https://www.jobplanet.co.kr"
+        self.data_path = data_path
 
     def get_url_list(self, get_once=False) -> Dict[str, Dict[str, str]]:
-        driver = self.driver()
-
         def job_find_window(job_filter):
             driver.find_element(By.CLASS_NAME, "jply_btn_sm.inner_text.jf_b2").click()
             dev_tab = driver.find_element(
@@ -340,10 +378,16 @@ class CrawlingJobPlanet(Crawling):
             for clk in clicked_list:
                 clk.click()  # 이전 직무 checkbox release
 
-        driver.get(self.endpoint + "/job")
-        time.sleep(1)
+        driver = self.driver()
+        filename = self.filenames["url_list"]
 
         job_dict = {}
+        if os.path.exists(filename):
+            with open(filename) as f:
+                job_dict = json.load(f)
+
+        driver.get(self.endpoint + "/job")
+        time.sleep(1)
 
         for job_filter in ["개발", "데이터"]:
             # job_find_window(job_filter)
@@ -358,6 +402,9 @@ class CrawlingJobPlanet(Crawling):
                 release_checked(before_obj)
 
                 job_name = current_obj.find_element(By.CLASS_NAME, "jf_b1").text
+
+                if job_name in job_dict:
+                    continue
 
                 if not job_name or job_name == f"{job_filter} 전체":
                     job_list_idx += 1
@@ -397,6 +444,9 @@ class CrawlingJobPlanet(Crawling):
                     content_dict[href] = url
                 job_dict[job_name] = content_dict
 
+                with open(os.path.join(self.data_path, f"{self.site_name}.url_list.json"), "w") as f:
+                    json.dump(job_dict, f)
+
                 job_list_idx += 1
 
                 time.sleep(1)
@@ -413,20 +463,52 @@ class CrawlingJobPlanet(Crawling):
 
         return job_dict
 
-    def postprocess(self, job_dict: dict) -> dict:
-        file = open(os.path.join(self.data_path, "jobplanet.result.jsonl"), "w")
+    def get_recruit_content_info(self, job_dict=None):
+        if job_dict is None:
+            if os.path.exists(self.filenames["url_list"]):
+                with open(self.filenames["url_list"]) as f:
+                    job_dict = json.load(f)
+            else:
+                job_dict = {}
+
+        filename = self.filenames["content_info"]
         driver = self.driver()
 
-        postprocess_dict = {}
+        position_content_dict = {}
+        if os.path.exists(filename):
+            with open(filename) as f:
+                position_content_dict = json.load(f)
 
         for job_name, info_dict in job_dict.items():
+            if job_name in position_content_dict:
+                continue
 
-            for job_detail_href, url in info_dict.items():
-
-                driver.get(url)
+            content_dict = {}
+            for job_detail_href, position_url in info_dict.items():
+                driver.get(position_url)
                 time.sleep(1)
+                content_dict[position_url] = self.driver.page_source
 
-                soup = BeautifulSoup(driver.page_source, "html.parser")
+            position_content_dict[job_name] = content_dict
+
+            with open(os.path.join(self.data_path, f"{self.site_name}.content_info.json"), "w") as f:
+                json.dump(position_content_dict, f)
+
+        driver.close()
+
+        return position_content_dict
+
+    def postprocess(self, position_content_dict: dict) -> dict:
+        file = open(self.filenames["result"], "w")
+
+        postprocess_dict = {}
+        if os.path.exists(self.filenames["content_info"]):
+            with open(self.filenames["content_info"]) as f:
+                postprocess_dict = json.load(f)
+
+        for job_name, info_dict in position_content_dict.items():
+            for url, page_source in info_dict.items():
+                soup = BeautifulSoup(page_source, "html.parser")
                 dd_list = soup.select("dd.recruitment-summary__dd")
                 dt_list = soup.select("dt.recruitment-summary__dt")
 
@@ -474,7 +556,6 @@ class CrawlingJobPlanet(Crawling):
                 file.write(json.dumps(result) + "\n")
 
         file.close()
-        driver.close()
 
         return postprocess_dict
 
@@ -488,8 +569,8 @@ class CrawlingWanted(Crawling):
     Crawling of "https://www.wanted.co.kr"
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, data_path=os.getcwd(), site_name="wanted"):
+        super().__init__(data_path=data_path, site_name=site_name)
         self.endpoint = "https://www.wanted.co.kr"
         self.job_parent_category = 518
         self.job_category_id2name = {
@@ -541,10 +622,19 @@ class CrawlingWanted(Crawling):
         }
 
     def get_url_list(self):
+        filename = self.filenames["url_list"]
         driver = self.driver()
 
         job_dict = {}
+        if os.path.exists(filename):
+            with open(filename) as f:
+                job_dict = json.load(f)
+
+        job_dict = {}
         for job_category in self.job_category_id2name:
+            if job_category in job_dict:
+                continue
+
             driver.get(f"{self.endpoint}/wdlist/{self.job_parent_category}/{job_category}")
 
             page_source = self.scroll_down_page(driver)
@@ -560,16 +650,33 @@ class CrawlingWanted(Crawling):
                 "position_list": position_list
             }
 
+            with open(os.path.join(self.data_path, f"{self.site_name}.url_list.json"), "w") as f:
+                json.dump(job_dict, f)
+
         driver.close()
 
         return job_dict
 
-    def get_recruit_content_info(self, job_dict):
+    def get_recruit_content_info(self, job_dict=None):
+        if job_dict is None:
+            if os.path.exists(self.filenames["url_list"]):
+                with open(self.filenames["url_list"]) as f:
+                    job_dict = json.load(f)
+            else:
+                job_dict = {}
+
+        filename = self.filenames["content_info"]
         driver = self.driver()
 
         position_content_dict = {}
+        if os.path.exists(filename):
+            with open(filename) as f:
+                position_content_dict = json.load(f)
 
         for job_category, job_info in job_dict.items():
+            if job_category in position_content_dict:
+                continue
+
             content_dict = {}
             for position_url in job_info["position_list"]:
                 driver.get(f"self.endpoint{position_url}")
@@ -578,14 +685,20 @@ class CrawlingWanted(Crawling):
 
             position_content_dict[job_category] = content_dict
 
+            with open(os.path.join(self.data_path, f"{self.site_name}.content_info.json"), "w") as f:
+                json.dump(position_content_dict, f)
+
         driver.close()
 
         return position_content_dict
 
     def postprocess(self, position_content_dict):
-        file = open(os.path.join(self.data_path, "wanted.result.jsonl"), "w")
+        file = open(self.filenames["result"], "w")
 
         postprocess_dict = {}
+        if os.path.exists(self.filenames["content_info"]):
+            with open(self.filenames["content_info"]) as f:
+                postprocess_dict = json.load(f)
 
         for job_category, info_dict in position_content_dict.items():
             for url, content in info_dict.items():

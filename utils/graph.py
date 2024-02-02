@@ -13,7 +13,7 @@ def top_stack_bar(stacks):
         ).sort_values(by='Count', ascending=False)
     tech_df = tech_df.iloc[:20]
     fig = px.bar(tech_df, x='Technology', y='Count')
-    
+    fig.update_layout(title_text='Top 20 Technologies')
     return fig
 
 def job_graph_pie(jobs):
@@ -45,7 +45,7 @@ def sankey_chart(df, column_for_jobs='job_name', column_for_techs='tech_stacks')
     # 각 노드에 대한 라벨 생성
     df = df.explode('tech_stacks')
     job_labels = df['job_name'].unique().tolist()
-    tech_labels = df['tech_stacks'].str.strip().str.capitalize().unique().tolist()
+    tech_labels = df['tech_stacks'].unique().tolist()
     labels = job_labels + tech_labels
 
     # source, target, value 리스트 생성

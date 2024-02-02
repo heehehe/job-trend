@@ -80,8 +80,6 @@ def main():
         if deadline_date:
             deadline_filter_date = pd.Timestamp(deadline_date)
             filtered_df = filtered_df[(pd.to_datetime(filtered_df['deadline']) <= deadline_filter_date) | pd.isna(filtered_df['deadline'])]
-        print(f"{df['tech_stacks'][0]=}")
-        print(f"{filtered_df.head()=}")
         
         
         # 메트릭 표시
@@ -90,7 +88,6 @@ def main():
             m2.metric("Count of Jobs", len(job_names))
             m3.metric("Count of Tech Stacks", len(tech_stacks))
             m4.metric("Total Companies", len(companies))
-            st.dataframe(filtered_df)
         
         
             tab1, tab2 = st.tabs(["🗃 Data", "📈 Chart"])

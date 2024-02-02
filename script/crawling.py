@@ -19,14 +19,18 @@ class Crawling:
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36'
         }
         self.driver = webdriver.Safari if sys.platform.lower() == "darwin" else webdriver.Chrome
+        if not os.path.exists(data_path):
+            os.mkdir(data_path)
         self.data_path = data_path
+        self.site_name = site_name
+
         self.info_key2name = {
             "경력": "career",
             "학력": "academic_background",
             "마감일": "deadline",
             "근무지역": "location"
         }
-        self.site_name = site_name
+
         self.filenames = {
             "url_list": os.path.join(self.data_path, f"{self.site_name}.url_list.json"),
             "content_info": os.path.join(self.data_path, f"{self.site_name}.content_info.json"),
@@ -630,7 +634,6 @@ class CrawlingWanted(Crawling):
             with open(filename) as f:
                 job_dict = json.load(f)
 
-        job_dict = {}
         for job_category in self.job_category_id2name:
             if job_category in job_dict:
                 continue

@@ -1,8 +1,12 @@
+import ast
+import os
+
+import pandas as pd
 import streamlit as st
 from google.cloud import bigquery
 from google.oauth2 import service_account
 
-from utils.graph import top_stack_bar, job_graph_pie
+from utils.graph import job_graph_pie, sankey_chart, sunburst_chart, top_stack_bar
 
 # Construct a BigQuery client object.
 credentials = service_account.Credentials.from_service_account_info(
@@ -11,119 +15,107 @@ credentials = service_account.Credentials.from_service_account_info(
 
 client = bigquery.Client(credentials=credentials, project=credentials.project_id,)
 table_name = st.secrets["database"]["table_name"]
+tmp_path = os.path.join('data', 'sampledata.csv')
 
 st.set_page_config(page_title="JobTrend", page_icon=":chart_with_upwards_trend:")
 
-@st.cache_data      # 여러번호출을 방지함.
-def get_unique_job_names():
-    query = f"""
-    SELECT DISTINCT job_name
-    FROM `{table_name}`
-    ORDER BY job_name
-    """
-    result = client.query(query).result().to_dataframe()
-    return result['job_name'].tolist()
-
 @st.cache_data
-def get_unique_tech_stacks():
+def get_all_data() -> pd.DataFrame:
     query = f"""
-    SELECT DISTINCT tech
-    FROM `{table_name}`, 
-    UNNEST(tech_list) as tech
+    SELECT *
+    FROM `{table_name}`
     """
     result = client.query(query).result().to_dataframe()
-    result['tech'] = result['tech'].str.strip()
-    result['tech'] = result['tech'].str.capitalize()
-    result = result['tech'].unique()
-
     return result
 
-def get_openings_by_tech_stack(tech_filter):
+def get_local_data(tmp_path: str) -> pd.DataFrame:
+    df = pd.read_csv(tmp_path)
+    for c in df.columns:
+        try:
+            df[c] = df[c].apply(ast.literal_eval)
+        except:
+            pass
+
+    return df
+
+@st.cache_data
+def get_job_trend_data(limit: int=500) -> pd.DataFrame:
     query = f"""
-    SELECT COUNT(*) AS num_openings
-    FROM `{table_name}`, 
-    UNNEST(tech_list) as tech
-    WHERE {tech_filter}
+        SELECT company_name, title, job_name, tech_list,  url, deadline
+        FROM `{table_name}`
+        LIMIT {limit}
     """
     result = client.query(query).result().to_dataframe()
-    return result['num_openings'].iloc[0]
+    result['tech_stacks'] = result['tech_list'].apply(lambda x: [i.strip().capitalize() for i in x])
+    result.drop(columns=['tech_list'], inplace=True)
+    return result
 
-def get_openings_by_job_name(job_filter):
-    query = f"""
-    SELECT COUNT(*) AS num_openings
-    FROM `{table_name}`
-    WHERE {job_filter}
-    """
-    result = client.query(query).result().to_dataframe()
-    return result['num_openings'].iloc[0]
-
-job_names = get_unique_job_names()
-tech_stacks = get_unique_tech_stacks()
 def main():
     st.title("JOB TREND for EVERYBODY")
     st.subheader("📊Result")
+    
+    if os.path.exists(tmp_path):
+        df = get_local_data(tmp_path)
+        df['tech_stacks'] = df['tech_stacks'].apply(lambda x: [i.strip().capitalize() for i in x])
+    else:
+        df = get_job_trend_data()
+        os.makedirs('data', exist_ok=True)
+        df.to_csv(tmp_path, index=False)
+    
+    job_names = df['job_name'].unique().tolist()
+    tech_stacks = df['tech_stacks'].explode().unique().tolist()
+    companies = df['company_name'].unique().tolist()
+    
     # 사이드바
     with st.sidebar:
         col1, col2 = st.columns([6, 3])
         
         with col1:
-            st.write("## 👨‍💻Search the JobTrend")
+            st.write("## :technologist: Search the JobTrend")
         with col2:
             st.write("")
-            search_button = st.button('🔎Search!', key="search_button")
+            search_button = st.button(':mag_right: Search!', key="search_button")
 
         job_name_selected = st.selectbox("Select job name", ["All"] + job_names)
         tech_stacks_selected = st.multiselect("Select tech stacks", tech_stacks)
         deadline_date = st.date_input("Select a deadline")
     
     # 메인화면
-    st.write()
     if search_button:
-        # job_name 필터
-        job_filter = f"job_name = '{job_name_selected}'" if job_name_selected != "All" else "TRUE"
+        # 필터링 로직
+        filtered_df = df.copy()
 
-        # tech_stacks 필터
+        if job_name_selected != "All":
+            filtered_df = filtered_df[filtered_df['job_name'] == job_name_selected]
         if tech_stacks_selected:
-            tech_filter = "tech IN ('" + "', '".join(tech_stacks_selected) + "')"
-        else:
-            tech_filter = "TRUE"
-            
-        deadline_filter = f"deadline <= '{deadline_date}' OR deadline IS NULL"
-
-        fin_query = f"""
-        SELECT company_name, title, job_name, STRING_AGG(tech, ', ') AS tech_stacks,  url, deadline
-        FROM `{table_name}`, UNNEST(tech_list) as tech
-        WHERE {job_filter}
-        AND {tech_filter}
-        AND {deadline_filter}
-        GROUP BY 
-        company_name, 
-        title, 
-        job_name, 
-        url, 
-        deadline
-        LIMIT 50
-        """
+            filtered_df = filtered_df[filtered_df['tech_stacks'].apply(lambda x: any(tech in x for tech in tech_stacks_selected))]
+        if deadline_date:
+            deadline_filter_date = pd.Timestamp(deadline_date)
+            filtered_df = filtered_df[(pd.to_datetime(filtered_df['deadline']) <= deadline_filter_date) | pd.isna(filtered_df['deadline'])]
+        
+        # 메트릭 표시
         with st.spinner("Loading..."):
-            data = client.query(fin_query).result().to_dataframe()
-            data['tech_stacks'] = data['tech_stacks'].apply(lambda x: x.split(','))
-            # data.to_csv('sample_data.csv', index=False)    # for debugging data...^^;
-            
             m1, m2, m3, m4, m5 = st.columns(5)
-            m2.metric("Count of Jobs", get_openings_by_job_name(job_filter))
-            m3.metric("Count of Tech Stacks", get_openings_by_tech_stack(tech_filter))
-            m4.metric("Total Companies", len(data))
+            m2.metric("Count of Jobs", len(job_names))
+            m3.metric("Count of Tech Stacks", len(tech_stacks))
+            m4.metric("Total Companies", len(companies))
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                st.plotly_chart(top_stack_bar(filtered_df['tech_stacks']), use_container_width=True)
+            with c2:
+                st.plotly_chart(job_graph_pie(filtered_df['job_name']), use_container_width=True)
             
             tab1, tab2 = st.tabs(["🗃 Data", "📈 Chart"])
             with tab1:
-                st.dataframe(data = data,
+                st.dataframe(data = filtered_df,
                             column_config={
                                 "url": st.column_config.LinkColumn()
                             })
             with tab2:
-                st.info("Working In Progress...😅") 
-                st.plotly_chart(top_stack_bar(data['tech_stacks']))
-                st.plotly_chart(job_graph_pie(data['job_name']))
+                # TODO: chart 뭔가 마음에 안 듦.
+                st.plotly_chart(sunburst_chart(df), use_container_width=True)
+                st.plotly_chart(sankey_chart(filtered_df), use_container_width=True)
 
 if __name__ == "__main__":
     main()

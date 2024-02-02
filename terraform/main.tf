@@ -8,6 +8,12 @@ provider "google" {
   region = var.region.asia
 }
 
+resource "google_compute_address" "static_ip" {
+  name = "vm-static-ip"
+  project = var.project_id
+  region  = var.region.asia
+}
+
 resource "google_compute_instance" "default" {
   name = "terraform-gce"
   machine_type = var.machine.e2_medium
@@ -23,6 +29,7 @@ resource "google_compute_instance" "default" {
   network_interface {
     network = "default"
     access_config {
+      nat_ip = google_compute_address.static_ip.address
 
     }
   }
@@ -36,15 +43,14 @@ resource "google_compute_instance" "default" {
               sudo apt-get update
               sudo apt-get install python3-pip -y
               pip3 install apache-airflow
-              ${file("${path.root}/install/${var.docker_install_sh}")}
-              cd /home/${var.account_name}
-              mkdir airflow-docker
-              cd airflow-docker
-              mkdir -p ./dags ./logs ./plugins ./config
-              echo -e "AIRFLOW_UID=$(id -u)" > .env
-              curl -LfO ${var.docker_compose_url} 
-              docker compose up
               EOF
-  
 
 }
+
+
+# ${file("${path.root}/install/${var.docker_install_sh}")}
+#               cd /home/${var.account_name}
+#               mkdir airflow-docker
+#               cd airflow-docker
+#               mkdir -p ./dags ./logs ./plugins ./config
+#               echo -e "AIRFLOW_UID=$(id -u)" > .env

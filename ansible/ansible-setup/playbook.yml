@@ -1,0 +1,11 @@
+---
+- name: test playbook
+  hosts: 34.64.246.235
+  remote_user: songprem94
+  vars:
+    ansible_ssh_private_key_file: /path/to/your/private/key
+  tasks:
+    - name: connect-ssh
+      
+
+    

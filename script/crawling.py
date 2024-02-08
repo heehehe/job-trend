@@ -9,8 +9,9 @@ import re
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-
+from selenium.webdriver.support import expected_conditions as EC
 from typing import Dict
+import traceback
 
 
 class Crawling:
@@ -361,14 +362,16 @@ class CrawlingJobPlanet(Crawling):
 
     def get_url_list(self, get_once=False) -> Dict[str, Dict[str, str]]:
         def job_find_window(job_filter):
-            driver.find_element(By.CLASS_NAME, "jply_btn_sm.inner_text.jf_b2").click()
-            dev_tab = driver.find_element(
+            jobs_tab = driver.find_element(By.CLASS_NAME, "jply_btn_sm.inner_text.jf_b2")
+            jobs_tab.click()
+            target_job_tab = driver.find_element(
                 By.CLASS_NAME, "filter_depth1_list"
             ).find_elements(By.CLASS_NAME, "filter_depth1_btn.jf_b1")
 
-            for i in dev_tab:
+            for i in target_job_tab:
                 if i.text == job_filter:
                     i.click()
+                    break
                 else:
                     continue
 
@@ -376,13 +379,32 @@ class CrawlingJobPlanet(Crawling):
             panel = driver.find_element(By.CLASS_NAME, "panel_bottom")
             applied_btn = panel.find_element(By.CLASS_NAME, "jply_btn_sm.ty_solid")
             applied_btn.click()
+            time.sleep(2) # 페이지 로딩을 위한 시간 
+
 
         def release_checked(before_obj):
             clicked_list = before_obj.find_elements(By.CLASS_NAME, "jp-checkbox-checked_fill.checked")
             for clk in clicked_list:
                 clk.click()  # 이전 직무 checkbox release
 
+        def close_popup():
+            iframes = driver.find_elements(By.TAG_NAME,"iframe")
+            for iframe in iframes:
+                iframe_titles = iframe.get_attribute("title")
+                if not iframe_titles :
+                    continue
+                if iframe_titles == "Modal Message" :
+                    driver.switch_to.frame(iframe)
+                    a= driver.find_element(By.TAG_NAME, "button")
+                    a.click()
+                    driver.switch_to.default_content()
+                    print("exit iframe")
+                    break
+
+            time.sleep(3)
+
         driver = self.driver()
+        driver.set_window_size(1024, 1148)  # 창 크기 조절 안할 시 apply 버튼 못찾아서 에러 발생
         filename = self.filenames["url_list"]
 
         job_dict = {}
@@ -391,11 +413,13 @@ class CrawlingJobPlanet(Crawling):
                 job_dict = json.load(f)
 
         driver.get(self.endpoint + "/job")
-        time.sleep(1)
+        time.sleep(3)   # 페이지 로딩을 위한 시간 popup창이 뜨는 경우가 있어서 3초로 설정
+
+        close_popup()   # 팝업창 닫기
+        driver.switch_to.default_content()
 
         for job_filter in ["개발", "데이터"]:
-            # job_find_window(job_filter)
-            job_chkbox = [0] * 10
+            job_chkbox = [0]  # 초기화
             job_list_idx = 0
 
             while len(job_chkbox) > job_list_idx:
@@ -407,19 +431,14 @@ class CrawlingJobPlanet(Crawling):
 
                 job_name = current_obj.find_element(By.CLASS_NAME, "jf_b1").text
 
-                if job_name in job_dict:
-                    continue
-
-                if not job_name or job_name == f"{job_filter} 전체":
+                if not job_name or job_name == f"{job_filter} 전체" or job_name in job_dict:    # 직무명이 없는 경우 패스 & 이미 수집한 직무는 패스 & job name이 직무 전체이면 패스
                     job_list_idx += 1
                     apply_btn()
                     continue
 
                 unchk_box = current_obj.find_element(By.CLASS_NAME, "jp-checkbox-unchecked.unchecked")
                 unchk_box.click()
-
                 apply_btn()
-
                 time.sleep(1)
 
                 _page_source = ""
@@ -791,7 +810,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--site_type", help="type of site", default="jobplanet")
     parser.add_argument("-l", "--log_type", help="type of log", default="info")
-    parser.add_argument("-d", "--data_path", help="path of data", default=os.getcwd())
+    parser.add_argument("-d", "--data_path", help="path of data", default=os.path.join(os.getcwd(), "data"))
     parser.add_argument("-m", "--method", help="method to execute", default="all")
 
     args = parser.parse_args()

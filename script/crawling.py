@@ -9,9 +9,9 @@ import re
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
+# from selenium.webdriver.support import expected_conditions as EC
 from typing import Dict
-import traceback
+# import traceback
 
 
 class Crawling:
@@ -19,7 +19,7 @@ class Crawling:
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36'
         }
-        self.driver = webdriver.Safari if sys.platform.lower() == "darwin" else webdriver.Chrome
+        self.driver = webdriver.Chrome  # webdriver.Safari if sys.platform.lower() == "darwin" else webdriver.Chrome
         if not os.path.exists(data_path):
             os.mkdir(data_path)
         self.data_path = data_path
@@ -381,7 +381,6 @@ class CrawlingJobPlanet(Crawling):
             applied_btn.click()
             time.sleep(2) # 페이지 로딩을 위한 시간 
 
-
         def release_checked(before_obj):
             clicked_list = before_obj.find_elements(By.CLASS_NAME, "jp-checkbox-checked_fill.checked")
             for clk in clicked_list:
@@ -391,14 +390,13 @@ class CrawlingJobPlanet(Crawling):
             iframes = driver.find_elements(By.TAG_NAME,"iframe")
             for iframe in iframes:
                 iframe_titles = iframe.get_attribute("title")
-                if not iframe_titles :
+                if not iframe_titles:
                     continue
-                if iframe_titles == "Modal Message" :
+                if iframe_titles == "Modal Message":
                     driver.switch_to.frame(iframe)
-                    a= driver.find_element(By.TAG_NAME, "button")
-                    a.click()
+                    button = driver.find_element(By.TAG_NAME, "button")
+                    button.click()
                     driver.switch_to.default_content()
-                    print("exit iframe")
                     break
 
             time.sleep(3)
@@ -412,7 +410,7 @@ class CrawlingJobPlanet(Crawling):
             with open(filename) as f:
                 job_dict = json.load(f)
 
-        driver.get(self.endpoint + "/job")
+        driver.get(f"{self.endpoint}/job")
         time.sleep(3)   # 페이지 로딩을 위한 시간 popup창이 뜨는 경우가 있어서 3초로 설정
 
         close_popup()   # 팝업창 닫기
@@ -492,7 +490,7 @@ class CrawlingJobPlanet(Crawling):
                 with open(self.filenames["url_list"]) as f:
                     job_dict = json.load(f)
             else:
-                job_dict = {}
+                job_dict = self.get_url_list()
 
         filename = self.filenames["content_info"]
         driver = self.driver()
@@ -510,7 +508,7 @@ class CrawlingJobPlanet(Crawling):
             for job_detail_href, position_url in info_dict.items():
                 driver.get(position_url)
                 time.sleep(1)
-                content_dict[position_url] = self.driver.page_source
+                content_dict[position_url] = driver.page_source
 
             position_content_dict[job_name] = content_dict
 
@@ -521,7 +519,14 @@ class CrawlingJobPlanet(Crawling):
 
         return position_content_dict
 
-    def postprocess(self, position_content_dict: dict) -> dict:
+    def postprocess(self, position_content_dict: dict = None) -> dict:
+        if position_content_dict is None:
+            if os.path.exists(self.filenames["content_info"]):
+                with open(self.filenames["content_info"]) as f:
+                    position_content_dict = json.load(f)
+            else:
+                position_content_dict = self.get_recruit_content_info()
+
         file = open(self.filenames["result"], "w")
 
         postprocess_dict = {}
@@ -557,11 +562,17 @@ class CrawlingJobPlanet(Crawling):
 
                         extra_info[self.info_key2name[key]] = value
 
-                title = soup.select_one('h1.ttl').get_text(strip=True)
+                try:
+                    title = soup.select_one('h1.ttl').get_text(strip=True)
+                except:
+                    continue
 
                 company = soup.select_one("span.company_name")
-                company_id = company.find("a").get('href')
-                company_name = company.get_text(strip=True)
+                if company:
+                    company_id = company.find("a").get('href')
+                    company_name = company.get_text(strip=True)
+                else:
+                    company_id, company_name = "", ""
 
                 result = {
                     "url": f"{self.endpoint}{url}",
@@ -584,7 +595,8 @@ class CrawlingJobPlanet(Crawling):
 
     def run(self):
         job_dict = self.get_url_list()
-        result_dict = self.postprocess(job_dict)
+        position_content_dict = self.get_recruit_content_info(job_dict)
+        result_dict = self.postprocess(position_content_dict)
         return result_dict
 
 class CrawlingWanted(Crawling):

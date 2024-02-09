@@ -714,7 +714,7 @@ class CrawlingWanted(Crawling):
 
             content_dict = {}
             for position_url in job_info["position_list"]:
-                driver.get(f"self.endpoint{position_url}")
+                driver.get(f"{self.endpoint}{position_url}")
                 time.sleep(0.1)
                 content_dict[position_url] = driver.page_source
 

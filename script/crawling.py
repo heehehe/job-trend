@@ -173,7 +173,14 @@ class CrawlingJumpit(Crawling):
 
         return position_content_dict
 
-    def postprocess(self, position_content_dict):
+    def postprocess(self, position_content_dict=None):
+        if position_content_dict is None:
+            if os.path.exists(self.filenames["content_info"]):
+                with open(self.filenames["content_info"]) as f:
+                    position_content_dict = json.load(f)
+            else:
+                position_content_dict = self.get_recruit_content_info()
+
         file = open(self.filenames["result"], "w")
 
         postprocess_dict = {}
@@ -727,7 +734,14 @@ class CrawlingWanted(Crawling):
 
         return position_content_dict
 
-    def postprocess(self, position_content_dict):
+    def postprocess(self, position_content_dict=None):
+        if position_content_dict is None:
+            if os.path.exists(self.filenames["content_info"]):
+                with open(self.filenames["content_info"]) as f:
+                    position_content_dict = json.load(f)
+            else:
+                position_content_dict = self.get_recruit_content_info()
+
         file = open(self.filenames["result"], "w")
 
         postprocess_dict = {}

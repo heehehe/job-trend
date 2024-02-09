@@ -7,3 +7,4 @@ sources:
     tables:
       - name: jumpit
       - name: wanted
+      - name: jobplanet

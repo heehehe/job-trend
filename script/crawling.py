@@ -607,6 +607,7 @@ class CrawlingJobPlanet(Crawling):
         result_dict = self.postprocess(position_content_dict)
         return result_dict
 
+
 class CrawlingWanted(Crawling):
     """
     Crawling of "https://www.wanted.co.kr"
@@ -722,7 +723,7 @@ class CrawlingWanted(Crawling):
             content_dict = {}
             for position_url in job_info["position_list"]:
                 driver.get(f"{self.endpoint}{position_url}")
-                time.sleep(0.1)
+                time.sleep(1)
                 content_dict[position_url] = driver.page_source
 
             position_content_dict[job_category] = content_dict
@@ -754,14 +755,17 @@ class CrawlingWanted(Crawling):
                 result = {
                     "url": f"{self.endpoint}{url}",
                     "job_category": job_category,
-                    "job_name": self.job_category_id2name[job_category]
+                    "job_name": self.job_category_id2name[int(job_category)]
                 }
 
                 soup = BeautifulSoup(content, 'html')
 
                 job_header = soup.find("section", class_="JobHeader_className__HttDA")
 
-                result['title'] = job_header.find("h2").text
+                try:
+                    result['title'] = job_header.find("h2").text
+                except AttributeError:
+                    continue
 
                 _company_info = job_header.find("span", class_="JobHeader_companyNameText__uuJyu")
                 result['company_name'] = _company_info.text

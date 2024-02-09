@@ -534,13 +534,14 @@ class CrawlingJobPlanet(Crawling):
             with open(self.filenames["content_info"]) as f:
                 postprocess_dict = json.load(f)
 
+        job_category_name2id = {job_name: _id for _id, job_name in enumerate(position_content_dict.keys())}
+
         for job_name, info_dict in position_content_dict.items():
             for url, page_source in info_dict.items():
                 soup = BeautifulSoup(page_source, "html.parser")
                 dd_list = soup.select("dd.recruitment-summary__dd")
                 dt_list = soup.select("dt.recruitment-summary__dt")
 
-                deadline = None
                 tech_list = []
                 extra_info = {}
                 for dt_num in range(len(dt_list)):
@@ -555,11 +556,10 @@ class CrawlingJobPlanet(Crawling):
                         if "상시" in value or deadline_pat is None:
                             deadline = ""
                         else:
-                            deadline = deadline_pat.group().strip()
+                            deadline = deadline_pat.group().strip().replace(".", "-")
                         extra_info[self.info_key2name["마감일"]] = deadline
 
                     elif key in self.info_key2name.keys():
-
                         extra_info[self.info_key2name[key]] = value
 
                 try:
@@ -575,8 +575,9 @@ class CrawlingJobPlanet(Crawling):
                     company_id, company_name = "", ""
 
                 result = {
-                    "url": f"{self.endpoint}{url}",
+                    "url": url,
                     "job_name": job_name,
+                    "job_category": job_category_name2id[job_name],
                     "title": title,
                     "company_name": company_name,
                     "company_id": company_id,

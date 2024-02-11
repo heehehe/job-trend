@@ -64,11 +64,13 @@ def get_all_data() -> pd.DataFrame:
     return result
 
 @st.cache_data
-def get_data(limit: int=500) -> pd.DataFrame:
+def get_data(limit: int=None) -> pd.DataFrame:
     query = f"""
         SELECT company_name, title, job_name, tech_list,  url, deadline
         FROM `{table_name}`
     """
+    if limit:
+        query += f" LIMIT {limit}"
     result = client.query(query).result().to_dataframe()
     result['tech_stacks'] = result['tech_list'].apply(lambda x: [i.strip().capitalize() for i in x])
     result.drop(columns=['tech_list'], inplace=True)

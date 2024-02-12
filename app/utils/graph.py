@@ -63,11 +63,14 @@ def sunburst_chart(df):
 def sankey_chart(df, column_for_jobs="job_name", column_for_techs="tech_stacks"):
     # NOTE: 정보를 주기에 적합한 그래프가 아님.
     # 각 노드에 대한 라벨 생성
-    df = df.dropna(subset=[column_for_techs])
     df = df.explode("tech_stacks")
+    df = df.dropna(subset=[column_for_techs])
     job_labels = df[column_for_jobs].unique().tolist()
     tech_labels = df[column_for_techs].unique().tolist()
     labels = job_labels + tech_labels
+    
+    print(f"[debug] {job_labels=}")
+    print(f"[debug] {tech_labels=}")
 
     # source, target, value 리스트 생성
     source = []

@@ -1,11 +1,17 @@
 ---
 - name: test playbook
-  hosts: 34.64.246.235
-  remote_user: songprem94
+  hosts: web1
+  remote_user: "{{ lookup('env', 'REMOTE_USER') }}"
   vars:
-    ansible_ssh_private_key_file: /path/to/your/private/key
+    ansible_ssh_private_key_file: /home/song/.ssh/recruit-ssh
   tasks:
-    - name: connect-ssh
+    - name: copy
+      copy :
+        src: /home/song/ansible-setup/docker_install.sh
+        dest: /home/songprem94/
       
 
+    - name: command shell
+      command: bash /home/songprem94/docker_install.sh
+      
     

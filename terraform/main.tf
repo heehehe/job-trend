@@ -1,7 +1,7 @@
 
-data "template_file" "ssh_key" {
-  template = file("${path.module}/../private_dir/${var.ssh_pub_key}")
-}
+# data "template_file" "ssh_key" {
+#   template = file("${path.module}/../private_dir/${var.ssh_pub_key}")
+# }
 provider "google" {
   credentials = "${file("${path.module}/../private_dir/${var.credentials_file}")}"
   project = var.project_id
@@ -29,13 +29,14 @@ resource "google_compute_instance" "default" {
   network_interface {
     network = "default"
     access_config {
-      nat_ip = google_compute_address.static_ip.address
+      # nat_ip = google_compute_address.static_ip.address
 
     }
   }
 
   metadata = {
-    ssh-keys="${var.account_name}:${data.template_file.ssh_key.rendered}"
+    ssh-keys = "${var.account_name}:${file("${path.module}/../private_dir/${var.ssh_pub_key}")}"
+    
   }
 
   metadata_startup_script = <<-EOF
@@ -47,10 +48,15 @@ resource "google_compute_instance" "default" {
 
 }
 
+# resource "null_resource" "output_to_file" {
+#   provisioner "local-exec" {
+#     # command = "echo ${google_compute_instance.default.network_interface.0.access_config.0.nat_ip} > ${path.module}/../private_dir/ip.txt"
+#     command = "VM_IP=${google_compute_instance.default.network_interface.0.access_config.0.nat_ip}"
+    
+#   }
+# }
 
-# ${file("${path.root}/install/${var.docker_install_sh}")}
-#               cd /home/${var.account_name}
-#               mkdir airflow-docker
-#               cd airflow-docker
-#               mkdir -p ./dags ./logs ./plugins ./config
-#               echo -e "AIRFLOW_UID=$(id -u)" > .env
+
+output "public_ip" {
+  value = "${google_compute_instance.default.network_interface.0.access_config.0.nat_ip}"
+}

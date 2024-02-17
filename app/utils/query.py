@@ -68,6 +68,7 @@ def get_data(limit: int=None) -> pd.DataFrame:
     query = f"""
         SELECT company_name, title, job_name, tech_list,  url, deadline
         FROM `{table_name}`
+        WHERE deadline IS NULL OR deadline >= CURRENT_DATE()
     """
     if limit:
         query += f" LIMIT {limit}"

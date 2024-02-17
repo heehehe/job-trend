@@ -30,27 +30,32 @@ def main():
     # 사이드바
     with st.sidebar:
         col1, col2 = st.columns([6, 3])
-        with col1:
-            st.header(":technologist: Search the JobTrend")
-        with col2:
-            st.write("")
-            search_button = st.button(":mag_right: Search!", key="search_button")
+        st.title(":technologist: Search the JobTrend")
+        # with col1:
+        # with col2:
+            # st.write("")
+            # search_button = st.button(":mag_right: Search!", key="search_button")
 
-        chart_switch = st.toggle("More chart")
         job_name_selected = st.multiselect(
             "Select job name", ["All"] + job_names, "All"
         )
         tech_stacks_selected = st.multiselect(
             "Select tech stacks", ["All"] + tech_stacks, "All"
         )
+        # st.button("button", type='primary', use_container_width=True)
         deadline_date = st.date_input("Select a deadline")
+        
+        check_ongoing = st.checkbox('Exclude ongoing')
+        chart_switch = st.checkbox("More chart")
+        search_button = st.button(":mag_right: Search!", key="search_button", use_container_width=True)
         print(f"{job_name_selected=}, {tech_stacks_selected=}, {deadline_date=}")
 
     # 메인화면
+    st.subheader('Overview', divider='grey')
     m1, m2, m3, m4, m5 = st.columns(5)
-    m2.metric("Count of Jobs", len(job_names))
-    m3.metric("Count of Tech Stacks", len(tech_stacks))
-    m4.metric("Total Companies", len(companies))
+    m2.metric("**Count of Jobs**", len(job_names))
+    m3.metric("**Count of Tech Stacks**", len(tech_stacks))
+    m4.metric("**Total Companies**", len(companies))
 
     c1, c2 = st.columns(2)
     with c1:
@@ -59,7 +64,7 @@ def main():
         st.plotly_chart(job_graph_pie(df["job_name"], 0.5), use_container_width=True)
 
     if search_button:
-        st.subheader("🗃 Result")
+        st.subheader("🗃 Result", divider="grey")
         # 필터링 로직
         filtered_df = df.copy()
 
@@ -77,17 +82,24 @@ def main():
             ]
         if deadline_date:
             deadline_filter_date = pd.Timestamp(deadline_date)
-            filtered_df = filtered_df[
-                (pd.to_datetime(filtered_df["deadline"]) <= deadline_filter_date)
-                | pd.isna(filtered_df["deadline"])
-            ]
+            if check_ongoing:
+                filtered_df = filtered_df[
+                    (pd.to_datetime(filtered_df["deadline"]) <= deadline_filter_date)
+                    & pd.notnull(filtered_df["deadline"])
+                ]
+            else:
+                filtered_df = filtered_df[
+                    (pd.to_datetime(filtered_df["deadline"]) <= deadline_filter_date)
+                    | pd.isna(filtered_df["deadline"])
+                ]
 
         st.dataframe(
-            data=filtered_df, column_config={"url": st.column_config.LinkColumn()}
+            data=filtered_df, column_config={"url": st.column_config.LinkColumn()},
+            use_container_width=True
         )
 
         if chart_switch:
-            st.subheader(":bar_chart: More Charts...")
+            st.subheader(":bar_chart: More Charts...", divider="grey")
             with st.spinner("Loading..."):
                 with st.expander("**Sunburst chart**"):
                     st.plotly_chart(

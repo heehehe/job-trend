@@ -1,0 +1,10 @@
+version: 2
+
+sources:
+  - name: crawling_data
+    database: recruit-notice
+    schema: test
+    tables:
+      - name: jumpit
+      - name: wanted
+      - name: jobplanet

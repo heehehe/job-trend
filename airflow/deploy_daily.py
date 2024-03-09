@@ -12,7 +12,7 @@ DEFAULT_ARGS = {
     'owner': 'admin',
     'retries': 2,
     'retry_delay': timedelta(minutes=5),
-    'start_date': datetime(2024, 2, 10)
+    'start_date': datetime(2024, 3, 10)
 }
 
 DIR_PATH = os.path.dirname(os.path.abspath(__file__))

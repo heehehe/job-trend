@@ -1,7 +1,6 @@
 filepath="./Dockerfile"
 imagename="ansible-server"
 containername="ansible-container"
-REMOTE_USER="songprem94"
 
 
 if docker images | grep -q "$imagename" ; then 
@@ -17,7 +16,7 @@ if [ -e "$filepath" ] ; then
     echo "build start {{ $imagename }} "
     docker build -t "$imagename" .
     echo "create container $containername"
-    docker run -d -it --name $containername -v /home/song/.ssh:/home/song/.ssh -v ./ansible-setup:/home/song/ansible-setup -e REMOTE_USER=$REMOTE_USER $imagename
+    docker run -d -it --name $containername --rm -v $HOME/.ssh:/home/.ssh -v ./ansible-setup:/home/ansible-setup -e REMOTE_USER=$TF_VAR_vm_user -e VM_SSH_KEY=$TF_VAR_vm_ssh_key $imagename
 else 
     echo "file not exist"
 fi

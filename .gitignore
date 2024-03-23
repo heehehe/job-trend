@@ -160,6 +160,8 @@ private_dir/
 data/
 envs/bigquery.config.yml
 hosts
+sele-test.py
+export_var.sh
 
 # ignore .vscode
 .vscode/

@@ -35,7 +35,7 @@ resource "google_compute_instance" "default" {
   }
 
   metadata = {
-    ssh-keys = "${var.account_name}:${file("${path.module}/../private_dir/${var.ssh_pub_key}")}"
+    ssh-keys = "${var.vm_user}:${file("${var.home}/.ssh/${var.vm_ssh_key}.pub")}"
     
   }
 

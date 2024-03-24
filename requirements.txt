@@ -3,3 +3,9 @@ kiwipiepy==0.16.0
 google-cloud-bigquery==3.13.0
 PyYAML==6.0.1
 selenium==4.17.2
+
+# search 
+langchain==0.1.6
+langchain-community==0.0.19
+langchain-core==0.1.22
+langchain-openai==0.0.5

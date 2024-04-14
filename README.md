@@ -1,6 +1,6 @@
 # Job Trend
 개발자 채용공고 데이터 추출 파이프라인 구축 및 응용 프로젝트
-https://job-trend.streamlit.app/
+(https://job-trend.streamlit.app/)
 
 ## Background
 🤔 _데이터 엔지니어 직무는 어떤 기술스택이 필요할까?_<br>
@@ -95,8 +95,12 @@ company --> content_jobplanet
 - `Streamlit`을 기반으로 직무별 채용공고 및 상위 기술스택, 기술스택별 상위 직무를 시각화합니다.
 - 필터링을 기반으로 원하는 직무 및 기술스택, 공고 마감기한에 대한 정보를 얻을 수 있습니다.
   ![Dashboard](./img/dashboard.jpg)
-- (deprecated)
-  `Redash`를 통해 SQL문을 기반으로 대시보드를 생성합니다.
-  직무별 상위 기술스택 및 기술스택별 상위 직무 등의 정보를 Bar 및 Pie chart 뿐만 아니라, Sankey 및 Sunburst Sequence chart 등을 통해 제공합니다. 
-  직무(JOB), 기술스택(TECH STACK), 마감일(DEADLINE) parameter를 통해 동적으로 반응하는 대시보드를 구현합니다.
+
+<details><summary>Redash (deprecated)</summary>
+
+- `Redash`를 통해 SQL문을 기반으로 대시보드를 생성합니다.
+- 직무별 상위 기술스택 및 기술스택별 상위 직무 등의 정보를 Bar 및 Pie chart 뿐만 아니라, Sankey 및 Sunburst Sequence chart 등을 통해 제공합니다. 
+- 직무(JOB), 기술스택(TECH STACK), 마감일(DEADLINE) parameter를 통해 동적으로 반응하는 대시보드를 구현합니다.
   ![Redash Dashboard](./img/redash_dashboard.jpg)
+
+</details>

@@ -86,7 +86,19 @@ company --> content_jobplanet
 
 ### _Batch Processing_
 - `Airflow`를 통해 기반으로 일별 batch processing을 통해 데이터를 업데이트 합니다.
+  - Airflow DAG 구성 방식
+    ```mermaid
+    flowchart LR
+    wanted.get_url_list --> wanted.get_recruit_content_info --> wanted.postprocess
+    jumpit.get_url_list --> jumpit.get_recruit_content_info --> jumpit.postprocess
+    jobplanet.get_url_list --> jobplanet.get_recruit_content_info --> jobplanet.postprocess
+    wanted.postprocess --> upload_to_bigquery
+    jumpit.postprocess --> upload_to_bigquery
+    jobplanet.postprocess --> upload_to_bigquery
+    upload_to_bigquery --> run_dbt
+    ```
 - `Terraform` 및 `Ansible`을 이용하여 k8s 기반의 환경에서 Airflow를 구동시킵니다.
+
 
 ### _Chatbot with LLM_
 - Gemini를 기반으로 추출된 채용공고 내용을 LLM에 학습시킨 뒤, 개발자 채용과 관련된 내용을 답할 수 있는 챗봇을 생성합니다. 

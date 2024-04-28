@@ -8,16 +8,8 @@
   tasks:
     - name: copy docker install
       copy :
-        src: /home/ansible-setup/docker_install.sh
-        dest: /home/{{ remote_user_name }}/ansible-setup/
-    - name : copy airflow docker compose file 
-      copy :
-        src : /home/ansible-setup/docker-compose.yaml
-        dest : /home/{{ remote_user_name }}/ansible-setup/
-    - name: copy install-allinone.sh
-      copy :
-        src: /home/ansible-setup/install-allinone.sh
-        dest: /home/{{ remote_user_name }}/ansible-setup/
+        src: /home/ansible-setup
+        dest: /home/{{ remote_user_name }}/
 
     - name: command shell
       command: bash /home/{{ remote_user_name }}/ansible-setup/install-allinone.sh

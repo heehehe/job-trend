@@ -1,5 +1,6 @@
 # Job Trend
 개발자 채용공고 데이터 추출 파이프라인 구축 및 응용 프로젝트
+(https://job-trend.streamlit.app/)
 
 ## Background
 🤔 _데이터 엔지니어 직무는 어떤 기술스택이 필요할까?_<br>
@@ -85,15 +86,33 @@ company --> content_jobplanet
 
 ### _Batch Processing_
 - `Airflow`를 통해 기반으로 일별 batch processing을 통해 데이터를 업데이트 합니다.
+  - Airflow DAG 구성 방식
+    ```mermaid
+    flowchart LR
+    wanted.get_url_list --> wanted.get_recruit_content_info --> wanted.postprocess
+    jumpit.get_url_list --> jumpit.get_recruit_content_info --> jumpit.postprocess
+    jobplanet.get_url_list --> jobplanet.get_recruit_content_info --> jobplanet.postprocess
+    wanted.postprocess --> upload_to_bigquery
+    jumpit.postprocess --> upload_to_bigquery
+    jobplanet.postprocess --> upload_to_bigquery
+    upload_to_bigquery --> run_dbt
+    ```
 - `Terraform` 및 `Ansible`을 이용하여 k8s 기반의 환경에서 Airflow를 구동시킵니다.
 
+
+### _Chatbot with LLM_
+- Gemini를 기반으로 추출된 채용공고 내용을 LLM에 학습시킨 뒤, 개발자 채용과 관련된 내용을 답할 수 있는 챗봇을 생성합니다. 
+
 ### _Visualization_
-- `Streamlit` 및 `Redash`를 통해 SQL문을 기반으로 대시보드를 생성합니다.
-- 직무별 상위 기술스택 및 기술스택별 상위 직무 등의 정보를 Bar 및 Pie chart 뿐만 아니라, Sankey 및 Sunburst Sequence chart 등을 통해 제공합니다. 
-- 직무(JOB), 기술스택(TECH STACK), 마감일(DEADLINE) parameter를 통해 동적으로 반응하는 대시보드를 구현합니다.
+- `Streamlit`을 기반으로 직무별 채용공고 및 상위 기술스택, 기술스택별 상위 직무를 시각화합니다.
+- 필터링을 기반으로 원하는 직무 및 기술스택, 공고 마감기한에 대한 정보를 얻을 수 있습니다.
   ![Dashboard](./img/dashboard.jpg)
 
-### _Chatbot with LLM (future work)_
-- 추출된 채용공고 내용을 LLM에 학습시킨 뒤, 개발자 채용과 관련된 내용을 답할 수 있는 챗봇을 생성합니다. 
-- NAVER Cloud Platform에서 제공하는 `CLOVA Studio API`를 이용합니다.
+<details><summary>Redash (deprecated)</summary>
 
+- `Redash`를 통해 SQL문을 기반으로 대시보드를 생성합니다.
+- 직무별 상위 기술스택 및 기술스택별 상위 직무 등의 정보를 Bar 및 Pie chart 뿐만 아니라, Sankey 및 Sunburst Sequence chart 등을 통해 제공합니다. 
+- 직무(JOB), 기술스택(TECH STACK), 마감일(DEADLINE) parameter를 통해 동적으로 반응하는 대시보드를 구현합니다.
+  ![Redash Dashboard](./img/redash_dashboard.jpg)
+
+</details>

@@ -1,0 +1,18 @@
+---
+- name: test playbook
+  hosts: web1
+  vars:
+    ansible_ssh_private_key_file: /home/.ssh/{{ lookup('env','VM_SSH_KEY') }}
+    remote_user_name: "{{ lookup('env', 'REMOTE_USER') }}"
+  remote_user: "{{ remote_user_name }}"
+  tasks:
+    - name: copy docker install
+      copy :
+        src: /home/ansible-setup
+        dest: /home/{{ remote_user_name }}/
+
+    - name: command shell
+      command: bash /home/{{ remote_user_name }}/ansible-setup/install-allinone.sh
+    
+      
+    

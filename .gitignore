@@ -152,14 +152,19 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# local env file dir
+.terraform*
+*.tfstate
+*.tfstate.*
 private_dir/
-
-# except real config
-envs/bigquery.config.yml
-
-# except data dir
+*.tfvars
 data/
+envs/bigquery.config.yml
+hosts
+sele-test.py
+export_var.sh
+
+# ignore .vscode
+.vscode/
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can

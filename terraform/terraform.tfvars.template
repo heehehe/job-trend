@@ -1,0 +1,3 @@
+project_id = "{gcp project_id}"
+credentials_file = "{gcp project credentials_file.json}"
+vm_name = "{gcp vm name}"

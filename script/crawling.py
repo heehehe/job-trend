@@ -9,6 +9,7 @@ import re
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.firefox.options import Options
 # from selenium.webdriver.support import expected_conditions as EC
 from typing import Dict
 # import traceback
@@ -19,7 +20,17 @@ class Crawling:
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36'
         }
-        self.driver = webdriver.Chrome  # webdriver.Safari if sys.platform.lower() == "darwin" else webdriver.Chrome
+        if sys.platform.lower():
+            self.driver = webdriver.Firefox
+            self.driver_params = {
+                "executable_path": "/usr/local/bin/geckodriver",
+                "options": Options()
+            }
+            self.driver_params["options"].add_argument("--headless")
+        else:
+            self.driver = webdriver.Chrome
+            self.driver_params = {}
+
         if not os.path.exists(data_path):
             os.mkdir(data_path)
         self.data_path = data_path
@@ -105,7 +116,7 @@ class CrawlingJumpit(Crawling):
 
     def get_url_list(self):
         filename = self.filenames["url_list"]
-        driver = self.driver()
+        driver = self.driver(**self.driver_params)
 
         job_dict = {}
         if os.path.exists(filename):
@@ -147,7 +158,7 @@ class CrawlingJumpit(Crawling):
                 job_dict = {}
 
         filename = self.filenames["content_info"]
-        driver = self.driver()
+        driver = self.driver(**self.driver_params)
 
         position_content_dict = {}
         if os.path.exists(filename):
@@ -408,7 +419,7 @@ class CrawlingJobPlanet(Crawling):
 
             time.sleep(3)
 
-        driver = self.driver()
+        driver = self.driver(**self.driver_params)
         driver.set_window_size(1024, 1148)  # 창 크기 조절 안할 시 apply 버튼 못찾아서 에러 발생
         filename = self.filenames["url_list"]
 
@@ -500,7 +511,7 @@ class CrawlingJobPlanet(Crawling):
                 job_dict = self.get_url_list()
 
         filename = self.filenames["content_info"]
-        driver = self.driver()
+        driver = self.driver(**self.driver_params)
 
         position_content_dict = {}
         if os.path.exists(filename):
@@ -667,7 +678,7 @@ class CrawlingWanted(Crawling):
 
     def get_url_list(self):
         filename = self.filenames["url_list"]
-        driver = self.driver()
+        driver = self.driver(**self.driver_params)
 
         job_dict = {}
         if os.path.exists(filename):
@@ -709,7 +720,7 @@ class CrawlingWanted(Crawling):
                 job_dict = {}
 
         filename = self.filenames["content_info"]
-        driver = self.driver()
+        driver = self.driver(**self.driver_params)
 
         position_content_dict = {}
         if os.path.exists(filename):
